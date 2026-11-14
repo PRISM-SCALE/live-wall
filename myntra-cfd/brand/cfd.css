@@ -1,74 +1,110 @@
-/* Myntra · Customer First Day — wall theme
-   Colours and effects taken from Customer_First_Day_KV.ai (gradient sampled from the artwork). */
+/* Myntra · Customer First Day — premium wall theme
+   Colours from Customer_First_Day_KV.ai. Lockup + logo are the real artwork (see cfd.js).
+   Fonts: Montserrat (as in the KV: Black/ExtraBold for "Customer", Regular for the tagline). */
 :root{
   --cfd-plum:#8d0255; --cfd-magenta:#ba027a; --cfd-rose:#e5146e; --cfd-coral:#f4412d;
-  --cfd-orange:#f98a16; --cfd-ember:#a03e17; --cfd-hot:#ff29a3; --cfd-violet:#7a1cf0;
-  --cfd-gold:#ffd25a;
+  --cfd-orange:#f98a16; --cfd-gold:#ffd25a; --cfd-head:12.5vw;
 }
-html,body{background:var(--cfd-magenta)!important}
+html,body{background:#9c0262!important}
 body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 
-/* ---------- KV backdrop ---------- */
-#wall{background:
-    radial-gradient(70% 60% at 50% 38%, rgba(244,43,98,.55), transparent 70%),
-    radial-gradient(60% 70% at 0% 100%, rgba(120,0,70,.75), transparent 65%),
-    radial-gradient(55% 60% at 100% 100%, rgba(140,52,18,.7), transparent 60%),
-    linear-gradient(100deg, #a8026c 0%, #c4037a 16%, #e01070 38%, #f42f4a 58%, #f6552a 74%, #f98a16 100%)!important;}
+/* ---------- living KV backdrop (GPU-only motion: transforms, no repaints) ---------- */
+#wall{background:#b0036f!important}
 #wall .blob{display:none!important}
-.cfd-decor{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-.cfd-puzzle{position:absolute;opacity:.13;filter:drop-shadow(0 30px 60px rgba(60,0,30,.25))}
+.cfd-sky{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.cfd-sky-grad{position:absolute;inset:-18% -28%;will-change:transform;
+  background:
+    radial-gradient(42% 50% at 50% 46%, rgba(255,60,110,.45), transparent 70%),
+    linear-gradient(100deg, #a3026a 0%, #c0037a 18%, #df0f70 38%, #f22e4c 57%, #f6542b 74%, #f98a16 92%, #fb9a18 100%);
+  animation:cfdDrift 32s ease-in-out infinite alternate}
+@keyframes cfdDrift{
+  0%{transform:translate3d(-7%,0,0) rotate(-1.5deg)}
+  100%{transform:translate3d(7%,-2%,0) rotate(1.5deg)}}
+.cfd-orb{position:absolute;border-radius:50%;will-change:transform}
+.cfd-orb.a{width:62vw;height:62vw;left:-14vw;top:-22vw;background:radial-gradient(circle, rgba(255,70,190,.38), transparent 62%);animation:cfdOrbA 26s ease-in-out infinite alternate}
+.cfd-orb.b{width:58vw;height:58vw;right:-16vw;bottom:-26vw;background:radial-gradient(circle, rgba(255,170,40,.36), transparent 62%);animation:cfdOrbB 30s ease-in-out infinite alternate}
+.cfd-orb.c{width:44vw;height:44vw;left:30vw;top:18vh;background:radial-gradient(circle, rgba(255,90,120,.22), transparent 64%);animation:cfdOrbC 36s ease-in-out infinite alternate}
+@keyframes cfdOrbA{100%{transform:translate3d(12vw,8vh,0) scale(1.08)}}
+@keyframes cfdOrbB{100%{transform:translate3d(-14vw,-10vh,0) scale(1.1)}}
+@keyframes cfdOrbC{0%{transform:translate3d(-10vw,4vh,0)}100%{transform:translate3d(12vw,-6vh,0) scale(1.15)}}
+.cfd-vignette{position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(70,0,38,.42) 100%),
+             linear-gradient(180deg, rgba(80,0,40,.18) 0%, transparent 22%, transparent 78%, rgba(70,0,30,.32) 100%)}
+.cfd-grain{position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.cfd-puzzle{position:absolute;opacity:.085;will-change:transform}
 .cfd-puzzle path{fill:#fff}
-.cfd-puzzle.tl{width:30vw;left:-6vw;top:-4vw;transform:rotate(-22deg);animation:cfdFloatA 26s ease-in-out infinite}
-.cfd-puzzle.bl{width:26vw;left:-4vw;bottom:-9vw;transform:rotate(18deg);animation:cfdFloatB 30s ease-in-out infinite}
-.cfd-puzzle.tr{width:28vw;right:-5vw;top:4vh;transform:rotate(28deg);animation:cfdFloatB 28s ease-in-out infinite}
-.cfd-puzzle.br{width:24vw;right:-3vw;bottom:-6vw;transform:rotate(-30deg);animation:cfdFloatA 32s ease-in-out infinite}
-@keyframes cfdFloatA{50%{translate:1.2vw 1.4vw;rotate:4deg}}
-@keyframes cfdFloatB{50%{translate:-1.2vw 1vw;rotate:-4deg}}
-.cfd-ribbon{position:absolute;left:0;top:0;width:100%;height:20vh;z-index:7;pointer-events:none;overflow:visible}
-.cfd-ribbon .glow{animation:cfdPulse 4s ease-in-out infinite}
-@keyframes cfdPulse{50%{opacity:.55}}
+.cfd-puzzle.tl{width:27vw;left:-7vw;top:-5vw;rotate:-22deg;animation:cfdFloatA 34s ease-in-out infinite}
+.cfd-puzzle.bl{width:24vw;left:-5vw;bottom:-10vw;rotate:18deg;animation:cfdFloatB 38s ease-in-out infinite}
+.cfd-puzzle.tr{width:25vw;right:-7vw;top:10vh;rotate:28deg;animation:cfdFloatB 36s ease-in-out infinite}
+.cfd-puzzle.br{width:22vw;right:-4vw;bottom:-7vw;rotate:-30deg;animation:cfdFloatA 40s ease-in-out infinite}
+@keyframes cfdFloatA{50%{transform:translate3d(1vw,1.2vw,0) rotate(3deg)}}
+@keyframes cfdFloatB{50%{transform:translate3d(-1vw,.9vw,0) rotate(-3deg)}}
 
-/* ---------- header lockup ---------- */
-.cfd-head{position:absolute;top:0;left:0;right:0;height:17vh;z-index:8;display:flex;align-items:center;
-  justify-content:space-between;padding:0 2.6vw;pointer-events:none}
-.cfd-lockup{display:flex;align-items:center;gap:1.4vw}
-.cfd-logo{height:8vh;width:auto;filter:drop-shadow(.22vh 0 0 #fff) drop-shadow(-.22vh 0 0 #fff) drop-shadow(0 .22vh 0 #fff) drop-shadow(0 -.22vh 0 #fff) drop-shadow(0 .6vh 1.4vh rgba(90,0,40,.45))}
-.cfd-title{position:relative;line-height:1;padding-bottom:5vh;margin-top:1.6vh}
-.cfd-customer{display:flex;align-items:center;font-weight:800;font-size:5.6vh;letter-spacing:-.02em;color:#fff;
-  text-shadow:0 .5vh 1.6vh rgba(90,0,40,.35)}
-.cfd-avatar{width:4.7vh;height:4.7vh;margin:0 .15vh;border-radius:50%;position:relative;flex:0 0 auto;
-  background:radial-gradient(circle at 50% 22%, #ff4fc3 0%, #e82aa8 40%, #8b1cf0 100%);
-  box-shadow:0 0 0 .25vh rgba(255,170,90,.9), 0 0 1.6vh .4vh rgba(255,120,60,.75), inset 0 -.6vh 1vh rgba(60,0,120,.45)}
-.cfd-avatar::before{content:"";position:absolute;inset:7% 18% 52% 18%;border-radius:50%;
-  background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))}
-.cfd-avatar svg{position:absolute;inset:16% 16% 10% 16%;width:68%;height:74%}
-.cfd-firstday{position:absolute;left:30%;bottom:-2.2vh;white-space:nowrap;font-family:'Sacramento',cursive;font-size:7.6vh;
-  background:linear-gradient(90deg,#ff9cf0 0%,#ffa3c8 35%,#ffcf7a 65%,#fff08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 0 .25vh rgba(255,255,255,.9)) drop-shadow(0 0 1.2vh rgba(255,150,70,.75))}
-.cfd-pill{display:inline-flex;align-items:center;gap:1vh;padding:1.2vh 2.4vh;border-radius:999px;font-weight:700;font-size:2.6vh;color:#fff;
-  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  box-shadow:0 1vh 3vh rgba(90,0,40,.3), inset 0 1px 0 rgba(255,255,255,.4)}
-.cfd-pill svg{width:2.8vh;height:2.8vh}
-.cfd-pill .cfd-in{width:2.8vh;height:2.8vh;border-radius:.5vh;background:#fff;color:#c4037a;font-weight:800;font-size:1.9vh;display:flex;align-items:center;justify-content:center}
-.cfd-live{width:1.1vh;height:1.1vh;border-radius:50%;background:#fff;animation:cfdPing 1.8s ease-out infinite}
-@keyframes cfdPing{0%{box-shadow:0 0 0 0 rgba(255,255,255,.75)}100%{box-shadow:0 0 0 1.4vh rgba(255,255,255,0)}}
-.cfd-tagline{position:absolute;left:0;right:0;bottom:1.6vh;z-index:8;text-align:center;font-weight:400;font-size:2vh;
-  color:rgba(255,255,255,.92);letter-spacing:.01em;text-shadow:0 .3vh 1vh rgba(90,0,40,.5);pointer-events:none}
+/* ---------- header: real KV lockup + thread + heart ---------- */
+.cfd-head{position:absolute;top:0;left:0;width:100%;height:var(--cfd-head);z-index:8;pointer-events:none}
+.cfd-headsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.cfd-thread path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.cfd-thread .glow{opacity:.85;animation:cfdPulse 5s ease-in-out infinite}
+@keyframes cfdPulse{50%{opacity:.45}}
+.cfd-thread .glow{opacity:.85}
+/* travelling light: a short soft dash that fades in, glides along the line and dissolves away.
+   Left line first, then (as if it passed through the lettering) the right line. */
+.cfd-flow path{fill:none;stroke-linecap:round;stroke-dasharray:60 1000;stroke-dashoffset:60}
+.cfd-flow .halo{stroke:#ffe3a8;stroke-width:12}
+.cfd-flow .core{stroke:#fff;stroke-width:3.2}
+.cfd-flow.l path{animation:cfdFlowL 10s cubic-bezier(.4,0,.6,1) infinite}
+.cfd-flow.r path{animation:cfdFlowR 10s cubic-bezier(.4,0,.6,1) infinite}
+.cfd-flow.l{animation:cfdFadeL 10s ease-in-out infinite}
+.cfd-flow.r{animation:cfdFadeR 10s ease-in-out infinite}
+@keyframes cfdFlowL{0%{stroke-dashoffset:60}38%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowR{0%,40%{stroke-dashoffset:60}92%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFadeL{0%{opacity:0}8%{opacity:1}30%{opacity:1}38%,100%{opacity:0}}
+@keyframes cfdFadeR{0%,40%{opacity:0}46%{opacity:1}80%{opacity:.9}92%,100%{opacity:0}}
+.cfd-pill{position:absolute;right:2.4vw;top:calc(var(--cfd-head) * .4167);transform:translateY(-50%);
+  display:inline-flex;align-items:center;gap:.7vw;padding:.62vw 1.3vw .62vw 1vw;border-radius:999px;
+  font-weight:700;font-size:max(1.32vw,11px);letter-spacing:.005em;color:#fff;
+  background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.1));
+  border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
+  box-shadow:0 .8vw 2.2vw rgba(90,0,40,.32), inset 0 1px 0 rgba(255,255,255,.55)}
+.cfd-net{display:flex;width:1.45vw;height:1.45vw;min-width:12px;min-height:12px}
+.cfd-net svg{width:100%;height:100%}
+.cfd-live{width:.55vw;height:.55vw;min-width:6px;min-height:6px;border-radius:50%;background:#fff;animation:cfdPing 1.8s ease-out infinite}
+@keyframes cfdPing{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 .8vw rgba(255,255,255,0)}}
+.cfd-tagline{position:absolute;left:0;right:0;bottom:1.5vh;z-index:8;display:flex;align-items:center;justify-content:center;gap:1.4vw;
+  font-weight:400;font-size:2vh;letter-spacing:.04em;color:rgba(255,255,255,.94);text-shadow:0 .3vh 1vh rgba(90,0,40,.45);pointer-events:none}
+.cfd-tagline i{display:block;width:7vw;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75))}
+.cfd-tagline i:last-child{background:linear-gradient(270deg,transparent,rgba(255,255,255,.75))}
+
+/* ---------- soft dissolving edges over the posts ---------- */
+.cfd-edge{position:absolute;left:0;right:0;z-index:6;pointer-events:none;overflow:hidden}
+.cfd-edge .cfd-sky{inset:auto 0 auto 0;height:100vh}
+.cfd-edge.top{top:0;height:calc(var(--cfd-head) + 10vh);
+  -webkit-mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) + .8vh),rgba(0,0,0,.6) calc(var(--cfd-head) + 4vh),transparent calc(var(--cfd-head) + 10vh));
+          mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) + .8vh),rgba(0,0,0,.6) calc(var(--cfd-head) + 4vh),transparent calc(var(--cfd-head) + 10vh))}
+.cfd-edge.top .cfd-sky{top:0}
+.cfd-edge.bot{bottom:0;height:16vh;
+  -webkit-mask-image:linear-gradient(0deg,#000 5.6vh,rgba(0,0,0,.6) 9vh,transparent 16vh);
+          mask-image:linear-gradient(0deg,#000 5.6vh,rgba(0,0,0,.6) 9vh,transparent 16vh)}
+.cfd-edge.bot .cfd-sky{bottom:0}
+
+/* ---------- content area sits under the header ---------- */
+.grid{top:calc(var(--cfd-head) - 1vh)!important;bottom:3vh!important}
+.emptywall{inset:calc(var(--cfd-head) + .8vh) 0 5.6vh!important}
 
 /* ---------- cards ---------- */
-.card{border-radius:18px!important;box-shadow:0 1.6vh 4vh rgba(80,0,40,.38), 0 0 0 1px rgba(255,255,255,.35)!important}
-.card.custom{background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.42)!important;
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.card{border-radius:20px!important;box-shadow:0 2vh 5vh rgba(70,0,35,.36), 0 .4vh 1.2vh rgba(70,0,35,.18), 0 0 0 1px rgba(255,255,255,.4)!important}
+.card.custom{background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.08))!important;border:1px solid rgba(255,255,255,.45)!important;
+  backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
 .card.custom::before{display:none!important}
 .card.custom .kicker{color:#ffd25a!important}
 
-/* ---------- responsive (phones / small screens) ---------- */
+/* ---------- phones / small screens ---------- */
 @media(max-width:900px){
-  .cfd-head{height:11vh;padding:0 3vw}
-  .cfd-logo{height:5vh}
-  .cfd-customer{font-size:3.4vh}.cfd-avatar{width:2.9vh;height:2.9vh}
-  .cfd-firstday{font-size:4vh}
-  .cfd-pill{font-size:1.7vh;padding:.8vh 1.6vh}
   .cfd-tagline{display:none}
+  .cfd-pill{padding:5px 10px 5px 8px;gap:6px}
 }
-@media(prefers-reduced-motion:reduce){.cfd-puzzle,.cfd-ribbon .glow,.cfd-live{animation:none!important}}
+@media(prefers-reduced-motion:reduce){
+  .cfd-sky-grad,.cfd-orb,.cfd-puzzle,.cfd-live{animation:none!important}
+  .cfd-flow{display:none}
+}
