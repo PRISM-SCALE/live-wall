@@ -16,86 +16,98 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
   background:
     radial-gradient(42% 50% at 50% 46%, rgba(255,60,110,.45), transparent 70%),
     linear-gradient(100deg, #a3026a 0%, #c0037a 18%, #df0f70 38%, #f22e4c 57%, #f6542b 74%, #f98a16 92%, #fb9a18 100%);
-  animation:cfdDrift 32s ease-in-out infinite alternate}
+  animation:cfdDrift 40s ease-in-out infinite alternate}
 @keyframes cfdDrift{
-  0%{transform:translate3d(-7%,0,0) rotate(-1.5deg)}
-  100%{transform:translate3d(7%,-2%,0) rotate(1.5deg)}}
+  0%{transform:translate3d(-5%,0,0) rotate(-1deg)}
+  100%{transform:translate3d(5%,-1.5%,0) rotate(1deg)}}
 .cfd-orb{position:absolute;border-radius:50%;will-change:transform}
-.cfd-orb.a{width:62vw;height:62vw;left:-14vw;top:-22vw;background:radial-gradient(circle, rgba(255,70,190,.38), transparent 62%);animation:cfdOrbA 26s ease-in-out infinite alternate}
-.cfd-orb.b{width:58vw;height:58vw;right:-16vw;bottom:-26vw;background:radial-gradient(circle, rgba(255,170,40,.36), transparent 62%);animation:cfdOrbB 30s ease-in-out infinite alternate}
-.cfd-orb.c{width:44vw;height:44vw;left:30vw;top:18vh;background:radial-gradient(circle, rgba(255,90,120,.22), transparent 64%);animation:cfdOrbC 36s ease-in-out infinite alternate}
-@keyframes cfdOrbA{100%{transform:translate3d(12vw,8vh,0) scale(1.08)}}
-@keyframes cfdOrbB{100%{transform:translate3d(-14vw,-10vh,0) scale(1.1)}}
-@keyframes cfdOrbC{0%{transform:translate3d(-10vw,4vh,0)}100%{transform:translate3d(12vw,-6vh,0) scale(1.15)}}
+.cfd-orb.a{width:62vw;height:62vw;left:-14vw;top:-22vw;background:radial-gradient(circle, rgba(255,70,190,.3), transparent 62%);animation:cfdOrbA 34s ease-in-out infinite alternate}
+.cfd-orb.b{width:58vw;height:58vw;right:-16vw;bottom:-26vw;background:radial-gradient(circle, rgba(255,170,40,.3), transparent 62%);animation:cfdOrbB 38s ease-in-out infinite alternate}
+@keyframes cfdOrbA{100%{transform:translate3d(3vw,2vh,0) scale(1.02)}}
+@keyframes cfdOrbB{100%{transform:translate3d(-3vw,-2vh,0) scale(1.02)}}
 .cfd-vignette{position:absolute;inset:0;
   background:radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(70,0,38,.42) 100%),
              linear-gradient(180deg, rgba(80,0,40,.18) 0%, transparent 22%, transparent 78%, rgba(70,0,30,.32) 100%)}
 .cfd-grain{position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
-.cfd-puzzle{position:absolute;opacity:.085;will-change:transform}
+.cfd-puzzle{position:absolute;opacity:.06}
 .cfd-puzzle path{fill:#fff}
-.cfd-puzzle.tl{width:27vw;left:-7vw;top:-5vw;rotate:-22deg;animation:cfdFloatA 34s ease-in-out infinite}
+.cfd-puzzle.tl{width:24vw;left:-9vw;top:-7vw;rotate:-22deg;animation:cfdFloatA 34s ease-in-out infinite}
 .cfd-puzzle.bl{width:24vw;left:-5vw;bottom:-10vw;rotate:18deg;animation:cfdFloatB 38s ease-in-out infinite}
-.cfd-puzzle.tr{width:25vw;right:-7vw;top:10vh;rotate:28deg;animation:cfdFloatB 36s ease-in-out infinite}
+.cfd-puzzle.tr{width:19vw;right:-6vw;top:16vh;rotate:28deg;animation:cfdFloatB 36s ease-in-out infinite}
 .cfd-puzzle.br{width:22vw;right:-4vw;bottom:-7vw;rotate:-30deg;animation:cfdFloatA 40s ease-in-out infinite}
-@keyframes cfdFloatA{50%{transform:translate3d(1vw,1.2vw,0) rotate(3deg)}}
-@keyframes cfdFloatB{50%{transform:translate3d(-1vw,.9vw,0) rotate(-3deg)}}
+@keyframes cfdFloatA{50%{transform:translate3d(.6vw,.7vw,0) rotate(2deg)}}
+@keyframes cfdFloatB{50%{transform:translate3d(-.6vw,.5vw,0) rotate(-2deg)}}
 
 /* ---------- header: real KV lockup + thread + heart ---------- */
 .cfd-head{position:absolute;top:0;left:0;width:100%;height:var(--cfd-head);z-index:8;pointer-events:none}
-.cfd-headsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.cfd-headsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:2}
+.cfd-pill{z-index:1}
 .cfd-thread path{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.cfd-thread .glow{opacity:.85;animation:cfdPulse 5s ease-in-out infinite}
-@keyframes cfdPulse{50%{opacity:.45}}
-.cfd-thread .glow{opacity:.85}
-/* travelling light: a short soft dash that fades in, glides along the line and dissolves away.
-   Left line first, then (as if it passed through the lettering) the right line. */
+.cfd-thread .glow{opacity:.55}
+/* travelling light, one 14 s journey: fades in on the left line, runs round the avatar loop and behind
+   "mer" (lighting the artwork's own ribbon through a mask), past the heart, splits round the hashtag pill
+   (top and bottom edges together), meets again on the right and dissolves at the screen edge. */
 .cfd-flow path{fill:none;stroke-linecap:round;stroke-dasharray:60 1000;stroke-dashoffset:60}
-.cfd-flow .halo{stroke:#ffe3a8;stroke-width:12}
-.cfd-flow .core{stroke:#fff;stroke-width:3.2}
-.cfd-flow.l path{animation:cfdFlowL 10s cubic-bezier(.4,0,.6,1) infinite}
-.cfd-flow.r path{animation:cfdFlowR 10s cubic-bezier(.4,0,.6,1) infinite}
-.cfd-flow.l{animation:cfdFadeL 10s ease-in-out infinite}
-.cfd-flow.r{animation:cfdFadeR 10s ease-in-out infinite}
-@keyframes cfdFlowL{0%{stroke-dashoffset:60}38%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFlowR{0%,40%{stroke-dashoffset:60}92%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFadeL{0%{opacity:0}8%{opacity:1}30%{opacity:1}38%,100%{opacity:0}}
-@keyframes cfdFadeR{0%,40%{opacity:0}46%{opacity:1}80%{opacity:.9}92%,100%{opacity:0}}
+.cfd-flow .halo{stroke:#ffe3a8;stroke-width:10;opacity:.8}
+.cfd-flow .core{stroke:#fff;stroke-width:2.6}
+.cfd-flow.m path{stroke-dasharray:110 1000;stroke-dashoffset:110}
+.cfd-flow.m .halo{stroke:#fff3cf;stroke-width:14;opacity:.55}
+.cfd-flow.m .core{stroke:#fff;stroke-width:3;opacity:.8}
+.cfd-flow.p path{stroke-dasharray:150 1000;stroke-dashoffset:150}
+.cfd-flow.x path{stroke-dasharray:110 1000;stroke-dashoffset:110}
+.cfd-flow.l path{animation:cfdFlowL 14s linear infinite}
+.cfd-flow.m path{animation:cfdFlowM 14s linear infinite}
+.cfd-flow.r path{animation:cfdFlowR 14s linear infinite}
+.cfd-flow.p path{animation:cfdFlowP 14s linear infinite}
+.cfd-flow.x path{animation:cfdFlowX 14s linear infinite}
+.cfd-flow.l{animation:cfdFadeL 14s ease-in-out infinite}
+.cfd-flow.m{animation:cfdFadeM 14s ease-in-out infinite}
+.cfd-flow.r{animation:cfdFadeR 14s ease-in-out infinite}
+.cfd-flow.p{animation:cfdFadeP 14s ease-in-out infinite}
+.cfd-flow.x{animation:cfdFadeX 14s ease-in-out infinite}
+@keyframes cfdFlowL{0%{stroke-dashoffset:60}30%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowM{0%,28%{stroke-dashoffset:110}50%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowR{0%,48%{stroke-dashoffset:60}69%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowP{0%,67.5%{stroke-dashoffset:150}80%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowX{0%,78.5%{stroke-dashoffset:110}95%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFadeL{0%{opacity:0}5%{opacity:1}26%{opacity:1}30%,100%{opacity:0}}
+@keyframes cfdFadeM{0%,28%{opacity:0}31%{opacity:1}47%{opacity:1}50%,100%{opacity:0}}
+@keyframes cfdFadeR{0%,48%{opacity:0}51%{opacity:1}67%{opacity:1}69.5%,100%{opacity:0}}
+@keyframes cfdFadeP{0%,67.5%{opacity:0}69.5%{opacity:1}78%{opacity:1}80.5%,100%{opacity:0}}
+@keyframes cfdFadeX{0%,78.5%{opacity:0}80.5%{opacity:1}88%{opacity:.85}95%,100%{opacity:0}}
 .cfd-pill{position:absolute;right:2.4vw;top:calc(var(--cfd-head) * .4167);transform:translateY(-50%);
-  display:inline-flex;align-items:center;gap:.7vw;padding:.62vw 1.3vw .62vw 1vw;border-radius:999px;
-  font-weight:700;font-size:max(1.32vw,11px);letter-spacing:.005em;color:#fff;
-  background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.1));
-  border:1px solid rgba(255,255,255,.55);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
-  box-shadow:0 .8vw 2.2vw rgba(90,0,40,.32), inset 0 1px 0 rgba(255,255,255,.55)}
-.cfd-net{display:flex;width:1.45vw;height:1.45vw;min-width:12px;min-height:12px}
+  display:inline-flex;align-items:center;gap:.52vw;padding:.52vw .94vw .52vw .8vw;border-radius:999px;
+  font-weight:700;font-size:max(1.56vw,12px);letter-spacing:.01em;color:#fff;
+  background:rgba(110,8,42,.55);border:1px solid transparent;
+  box-shadow:0 .2vw .65vw rgba(80,0,35,.16), inset 0 1px 0 rgba(255,255,255,.22)}
+.cfd-net{display:flex;width:1.35vw;height:1.35vw;min-width:12px;min-height:12px}
 .cfd-net svg{width:100%;height:100%}
-.cfd-live{width:.55vw;height:.55vw;min-width:6px;min-height:6px;border-radius:50%;background:#fff;animation:cfdPing 1.8s ease-out infinite}
-@keyframes cfdPing{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}100%{box-shadow:0 0 0 .8vw rgba(255,255,255,0)}}
-.cfd-tagline{position:absolute;left:0;right:0;bottom:1.5vh;z-index:8;display:flex;align-items:center;justify-content:center;gap:1.4vw;
-  font-weight:400;font-size:2vh;letter-spacing:.04em;color:rgba(255,255,255,.94);text-shadow:0 .3vh 1vh rgba(90,0,40,.45);pointer-events:none}
-.cfd-tagline i{display:block;width:7vw;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75))}
-.cfd-tagline i:last-child{background:linear-gradient(270deg,transparent,rgba(255,255,255,.75))}
+.cfd-live{width:.37vw;height:.37vw;min-width:5px;min-height:5px;border-radius:50%;background:#fff;opacity:.85}
+.cfd-tagline{position:absolute;left:0;right:0;bottom:1.6vh;z-index:8;display:flex;align-items:center;justify-content:center;gap:1.05vw;
+  font-weight:400;font-size:2.25vh;letter-spacing:.02em;color:#fff;text-shadow:0 .2vh .5vh rgba(80,0,35,.25);pointer-events:none}
+.cfd-tagline i{display:block;width:4.7vw;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45))}
+.cfd-tagline i:last-child{background:linear-gradient(270deg,transparent,rgba(255,255,255,.45))}
 
 /* ---------- soft dissolving edges over the posts ---------- */
 .cfd-edge{position:absolute;left:0;right:0;z-index:6;pointer-events:none;overflow:hidden}
 .cfd-edge .cfd-sky{inset:auto 0 auto 0;height:100vh}
-.cfd-edge.top{top:0;height:calc(var(--cfd-head) + 10vh);
-  -webkit-mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) + .8vh),rgba(0,0,0,.6) calc(var(--cfd-head) + 4vh),transparent calc(var(--cfd-head) + 10vh));
-          mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) + .8vh),rgba(0,0,0,.6) calc(var(--cfd-head) + 4vh),transparent calc(var(--cfd-head) + 10vh))}
+.cfd-edge.top{top:0;height:calc(var(--cfd-head) + 2.5vh);
+  -webkit-mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) - .5vh),rgba(0,0,0,.4) calc(var(--cfd-head) + 1vh),transparent calc(var(--cfd-head) + 2.5vh));
+          mask-image:linear-gradient(180deg,#000 calc(var(--cfd-head) - .5vh),rgba(0,0,0,.4) calc(var(--cfd-head) + 1vh),transparent calc(var(--cfd-head) + 2.5vh))}
 .cfd-edge.top .cfd-sky{top:0}
-.cfd-edge.bot{bottom:0;height:16vh;
-  -webkit-mask-image:linear-gradient(0deg,#000 5.6vh,rgba(0,0,0,.6) 9vh,transparent 16vh);
-          mask-image:linear-gradient(0deg,#000 5.6vh,rgba(0,0,0,.6) 9vh,transparent 16vh)}
+.cfd-edge.bot{bottom:0;height:10.5vh;
+  -webkit-mask-image:linear-gradient(0deg,#000 4.6vh,rgba(0,0,0,.45) 6.8vh,transparent 10.5vh);
+          mask-image:linear-gradient(0deg,#000 4.6vh,rgba(0,0,0,.45) 6.8vh,transparent 10.5vh)}
 .cfd-edge.bot .cfd-sky{bottom:0}
 
 /* ---------- content area sits under the header ---------- */
-.grid{top:calc(var(--cfd-head) - 1vh)!important;bottom:3vh!important}
+.grid{top:calc(var(--cfd-head) + 1vh)!important;bottom:2.5vh!important}
 .emptywall{inset:calc(var(--cfd-head) + .8vh) 0 5.6vh!important}
 
 /* ---------- cards ---------- */
-.card{border-radius:20px!important;box-shadow:0 2vh 5vh rgba(70,0,35,.36), 0 .4vh 1.2vh rgba(70,0,35,.18), 0 0 0 1px rgba(255,255,255,.4)!important}
-.card.custom{background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.08))!important;border:1px solid rgba(255,255,255,.45)!important;
-  backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
+.card{border-radius:14px!important;box-shadow:0 .9vh 2.4vh rgba(75,0,35,.2), 0 0 0 1px rgba(255,255,255,.22)!important}
+.card.custom{background:linear-gradient(160deg,rgba(135,10,72,.62),rgba(110,6,58,.7))!important;border:1px solid rgba(255,255,255,.3)!important}
 .card.custom::before{display:none!important}
 .card.custom .kicker{color:#ffd25a!important}
 
@@ -105,6 +117,6 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
   .cfd-pill{padding:5px 10px 5px 8px;gap:6px}
 }
 @media(prefers-reduced-motion:reduce){
-  .cfd-sky-grad,.cfd-orb,.cfd-puzzle,.cfd-live{animation:none!important}
+  .cfd-sky-grad,.cfd-orb,.cfd-puzzle{animation:none!important}
   .cfd-flow{display:none}
 }

@@ -1,9 +1,10 @@
 /* Myntra · Customer First Day — premium wall theme.
    The lockup (Customer + avatar + First Day) and the Myntra logo are the real artwork, lifted out of
    Customer_First_Day_KV.ai as see-through images (kv-lockup.webp, kv-logo.webp).
-   The header is one SVG drawn in a 1920×240 box, so the ribbon lines up exactly with the ribbon
-   inside the artwork: it enters from the left, loops round the avatar (artwork), then runs on to a heart
-   and behind the hashtag pill.
+   The header is one SVG in a 1920×240 box. One glowing thread runs across it:
+     left edge → into the artwork's own ribbon (round the avatar, behind "mer") → heart →
+     around the hashtag pill (it draws the pill's outline) → right edge.
+   A travelling light makes that whole journey every 14 s.
    Usage: CFD.mount({kind:'instagram'|'linkedin', tag:'#…', wall:el}) · CFD.setTag('#…') */
 (function(){
   const PUZZLE='M30 50h45c-6-28 10-46 30-46s36 18 30 46h45v45c28-6 46 10 46 30s-18 36-46 30v45h-45c6 28-10 46-30 46s-36-18-30-46H30v-45c-28 6-46-10-46-30s18-36 46-30z';
@@ -11,58 +12,99 @@
   const IN='<svg viewBox="0 0 24 24" fill="#fff"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.5h4v11H3zM9.5 9.5h3.8v1.6h.06c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.77 2.65 4.77 6.1v5.36h-4v-4.75c0-1.13-.02-2.6-1.58-2.6-1.59 0-1.83 1.24-1.83 2.51v4.84h-4z"/></svg>';
   // Artwork placement in the 1920×240 header box: lockup covers KV x190–1620, y338–838 at scale .43
   const LK={x:633,y:12,w:615,h:215};
-  // Threads: two gentle shapes each; the line slowly breathes between them. The ends that meet the
-  // artwork's own ribbon stay fixed, so the join never moves.
-  // left: soft S-curve that eases into the artwork's ribbon (crossfade x633–697)
-  const LEFT_A='M-30 168 C 230 168, 410 46, 556 42 S 662 54, 697 69';
-  const LEFT_B='M-30 146 C 210 188, 420 62, 562 36 S 662 54, 697 69';
-  // right: leaves the artwork under "mer", loops a heart, runs behind the hashtag pill to the edge
-  const HEART='C 1430 98, 1408 80, 1418 63 C 1428 46, 1450 50, 1452 67 C 1454 50, 1476 46, 1486 63 C 1496 80, 1474 98, 1452 116 ';
-  const RIGHT_A='M1222 102 C 1300 99, 1378 124, 1452 116 '+HEART+'C 1508 108, 1560 100, 1620 100 S 1800 94, 1960 102';
-  const RIGHT_B='M1222 102 C 1300 103, 1372 130, 1452 116 '+HEART+'C 1508 104, 1560 100, 1620 100 S 1800 112, 1960 90';
-  const breathe=(a,b,dur)=>`<animate attributeName="d" dur="${dur}s" repeatCount="indefinite" calcMode="spline"
+
+  // Left thread. The last segment (x633→697) lies exactly on the artwork's own ribbon, measured from the KV,
+  // where the two crossfade, so it reads as one stroke. Two shapes; the far-left end slowly breathes.
+  const LJOIN=' C 653 55.5, 677 64.5, 697 68.5';
+  const LEFT_A='M-30 182 C 280 186, 563 -21.9, 633 38.3'+LJOIN;
+  const LEFT_B='M-30 168 C 260 206, 563 -21.9, 633 38.3'+LJOIN;
+  // Middle: route of the artwork's ribbon (round the avatar, behind "mer"); light only, masked to the ribbon.
+  const MID='M698 69 C716.1 69.0 773.5 70.1 809.3 67.9 C845.1 65.7 891.7 61.0 912.5 55.9 C933.3 50.7 927.5 41.8 934.0 36.9 C940.5 32.1 945.1 29.1 951.2 26.6 C957.3 24.1 963.7 22.4 970.5 21.9 C977.4 21.4 986.0 21.8 992.0 23.6 C998.1 25.4 1003.4 28.3 1007.1 32.6 C1010.8 36.9 1013.0 43.7 1014.4 49.4 C1015.8 55.1 1016.1 60.5 1015.7 66.6 C1015.3 72.7 1013.3 80.4 1012.3 86.0 C1011.3 91.5 1007.7 96.1 1009.7 99.7 C1011.7 103.3 1019.0 105.8 1024.3 107.5 C1029.6 109.1 1027.2 109.9 1041.5 109.6 C1055.8 109.3 1090.2 107.8 1110.3 105.7 C1130.4 103.7 1147.6 98.6 1161.9 97.1 C1176.2 95.7 1186.3 96.3 1196.3 97.1 C1206.3 98.0 1217.8 101.4 1222.1 102.3';
+  // Right thread: leaves the artwork on its own line (measured: 1222,102 rising to 1248,97.5), one smooth curve
+  // to the heart, then to the pill. The pill end is filled in at run time (the pill's width follows the hashtag).
+  const HX=1372, HY=100;
+  const HEART=`C ${HX-22} ${HY-18}, ${HX-44} ${HY-36}, ${HX-34} ${HY-53} C ${HX-24} ${HY-70}, ${HX-2} ${HY-66}, ${HX} ${HY-49} `
+    +`C ${HX+2} ${HY-66}, ${HX+24} ${HY-70}, ${HX+34} ${HY-53} C ${HX+44} ${HY-36}, ${HX+22} ${HY-18}, ${HX} ${HY} `;
+  const rightPath=(pl,cy,b)=>`M1222 102.3 C 1262 92, ${b?1336:1340} ${b?111:108}, ${HX} ${HY} `+HEART
+    +`C ${HX+40} ${b?106:104}, ${pl-46} ${cy}, ${pl} ${cy}`;
+  const exitPath=(pr,cy,b)=>`M${pr} ${cy} C ${pr+60} ${cy}, ${pr+90} ${b?cy+10:cy-6}, 1960 ${b?cy-8:cy+2}`;
+  const pillHalf=(pl,pr,cy,r,top)=>top
+    ?`M${pl} ${cy} A ${r} ${r} 0 0 1 ${pl+r} ${cy-r} L ${pr-r} ${cy-r} A ${r} ${r} 0 0 1 ${pr} ${cy}`
+    :`M${pl} ${cy} A ${r} ${r} 0 0 0 ${pl+r} ${cy+r} L ${pr-r} ${cy+r} A ${r} ${r} 0 0 0 ${pr} ${cy}`;
+
+  const MOTION=!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const breathe=(a,b,dur)=>!MOTION?'':`<animate attributeName="d" dur="${dur}s" repeatCount="indefinite" calcMode="spline"
       keyTimes="0;.5;1" keySplines=".45 0 .55 1;.45 0 .55 1" values="${a};${b};${a}"/>`;
-  // one line = soft glow + core + fine white highlight + a travelling light that fades in and dissolves out
-  function thread(a,b,dur,grad,side){
-    const bw=breathe(a,b,dur);
-    return `<path class="glow" d="${a}" stroke="url(#${grad})" stroke-width="9" filter="url(#cfdGlow)">${bw}</path>
-      <path d="${a}" stroke="url(#${grad})" stroke-width="3">${bw}</path>
-      <path d="${a}" stroke="#fff" stroke-opacity=".7" stroke-width="1">${bw}</path>
+  // one line = soft glow + core + fine white highlight + a travelling light that fades in and dissolves out.
+  // `key` marks the paths so their shape can be updated later (right side follows the pill).
+  function thread(a,b,dur,grad,side,key){
+    const bw=b?breathe(a,b,dur):'', k=key?` data-k="${key}"`:'';
+    return `<path class="glow"${k} d="${a}" stroke="url(#${grad})" stroke-width="7" filter="url(#cfdGlow)">${bw}</path>
+      <path${k} d="${a}" stroke="url(#${grad})" stroke-width="2.4">${bw}</path>
+      <path${k} d="${a}" stroke="#fff" stroke-opacity=".6" stroke-width=".9">${bw}</path>
       <g class="cfd-flow ${side}">
-        <path class="halo" d="${a}" pathLength="1000" filter="url(#cfdSoft)">${bw}</path>
-        <path class="core" d="${a}" pathLength="1000" filter="url(#cfdSoftS)">${bw}</path>
+        <path class="halo"${k} d="${a}" pathLength="1000" filter="url(#cfdSoft)">${bw}</path>
+        <path class="core"${k} d="${a}" pathLength="1000" filter="url(#cfdSoftS)">${bw}</path>
       </g>`;
   }
   // the moving KV background; also cloned into the top/bottom edges so posts dissolve into it
   function skyHTML(){
-    return '<div class="cfd-sky-grad"></div><div class="cfd-orb a"></div><div class="cfd-orb b"></div><div class="cfd-orb c"></div>'
+    return '<div class="cfd-sky-grad"></div><div class="cfd-orb a"></div><div class="cfd-orb b"></div>'
       +puzzle('tl')+puzzle('bl')+puzzle('tr')+puzzle('br')+'<div class="cfd-vignette"></div><div class="cfd-grain"></div>';
   }
+  // first guess for the pill (1920 box); corrected from the real pill once it is laid out
+  const G={pl:1474,pr:1874,cy:100,r:26};
   function header(kind,base){
     return `<header class="cfd-head" aria-label="Myntra Customer First Day">
+      <div class="cfd-pill"><span class="cfd-live"></span><span class="cfd-net">${kind==='linkedin'?IN:IG}</span><span class="cfd-tag"></span></div>
       <svg class="cfd-headsvg" viewBox="0 0 1920 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <defs>
           <linearGradient id="cfdRibL" gradientUnits="userSpaceOnUse" x1="0" x2="697" y1="0" y2="0">
             <stop offset="0" stop-color="#ff6fd2" stop-opacity="0"/><stop offset=".12" stop-color="#ff6fd2"/>
             <stop offset=".9" stop-color="#ff8fc0"/><stop offset="1" stop-color="#ffa0b8" stop-opacity="0"/></linearGradient>
           <linearGradient id="cfdRibR" gradientUnits="userSpaceOnUse" x1="1222" x2="1920" y1="0" y2="0">
-            <stop offset="0" stop-color="#ffc14a" stop-opacity="0"/><stop offset=".05" stop-color="#ffc14a"/>
+            <stop offset="0" stop-color="#ffc14a" stop-opacity="0"/><stop offset=".04" stop-color="#ffc14a"/>
             <stop offset=".45" stop-color="#ffd66a"/><stop offset="1" stop-color="#fff0a0"/></linearGradient>
-          <filter id="cfdGlow" x="-5%" y="-100%" width="110%" height="300%"><feGaussianBlur stdDeviation="6"/></filter>
+          <filter id="cfdGlow" x="-5%" y="-100%" width="110%" height="300%"><feGaussianBlur stdDeviation="4.5"/></filter>
           <filter id="cfdSoft" x="-10%" y="-200%" width="120%" height="500%"><feGaussianBlur stdDeviation="9"/></filter>
           <filter id="cfdSoftS" x="-10%" y="-200%" width="120%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter>
           <filter id="cfdLift" x="-10%" y="-20%" width="120%" height="150%">
-            <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#5a0030" flood-opacity=".35"/></filter>
+            <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#5a0030" flood-opacity=".24"/></filter>
+          <filter id="cfdLiftS" x="-10%" y="-20%" width="120%" height="150%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#5a0030" flood-opacity=".18"/></filter>
+          <mask id="cfdRibMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="240">
+            <image href="${base}kv-ribbon-mask.png" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
         </defs>
         <g class="cfd-thread">
           ${thread(LEFT_A,LEFT_B,11,'cfdRibL','l')}
-          ${thread(RIGHT_A,RIGHT_B,13,'cfdRibR','r')}
+          ${thread(rightPath(G.pl,G.cy,0),rightPath(G.pl,G.cy,1),13,'cfdRibR','r','r')}
+          ${thread(pillHalf(G.pl,G.pr,G.cy,G.r,1),'',0,'cfdRibR','p','pt')}
+          ${thread(pillHalf(G.pl,G.pr,G.cy,G.r,0),'',0,'cfdRibR','p','pb')}
+          ${thread(exitPath(G.pr,G.cy,0),exitPath(G.pr,G.cy,1),9,'cfdRibR','x','x')}
         </g>
-        <image href="${base}kv-logo.webp" x="46" y="34" width="150" height="107" filter="url(#cfdLift)"/>
+        <image href="${base}kv-logo.webp" x="60" y="46" width="150" height="107" filter="url(#cfdLiftS)"/>
         <image class="cfd-lockup" href="${base}kv-lockup.webp" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
+        <g class="cfd-flow m" mask="url(#cfdRibMask)">
+          <path class="halo" d="${MID}" pathLength="1000"/>
+          <path class="core" d="${MID}" pathLength="1000" filter="url(#cfdSoftS)"/>
+        </g>
       </svg>
-      <div class="cfd-pill"><span class="cfd-live"></span><span class="cfd-net">${kind==='linkedin'?IN:IG}</span><span class="cfd-tag"></span></div>
     </header>`;
+  }
+  // Fit the right side of the thread to the pill as it is actually drawn (its width follows the hashtag).
+  function fitPill(){
+    const svg=document.querySelector('.cfd-headsvg'), pill=document.querySelector('.cfd-pill');
+    if(!svg||!pill||!svg.getScreenCTM())return;
+    const r=pill.getBoundingClientRect(); if(!r.width)return;
+    const m=svg.getScreenCTM().inverse(), pt=svg.createSVGPoint();
+    const to=(x,y)=>{pt.x=x;pt.y=y;return pt.matrixTransform(m);};
+    const a=to(r.left,r.top), b=to(r.right,r.bottom);
+    const pl=+a.x.toFixed(1), pr=+b.x.toFixed(1), cy=+((a.y+b.y)/2).toFixed(1), rad=+((b.y-a.y)/2).toFixed(1);
+    const set=(k,A,B)=>svg.querySelectorAll(`[data-k="${k}"]`).forEach(p=>{
+      p.setAttribute('d',A); const an=p.querySelector('animate'); if(an&&B)an.setAttribute('values',`${A};${B};${A}`);});
+    set('r',rightPath(pl,cy,0),rightPath(pl,cy,1));
+    set('pt',pillHalf(pl,pr,cy,rad,1)); set('pb',pillHalf(pl,pr,cy,rad,0));
+    set('x',exitPath(pr,cy,0),exitPath(pr,cy,1));
   }
   function puzzle(cls){return `<svg class="cfd-puzzle ${cls}" viewBox="-20 0 260 245" aria-hidden="true"><path d="${PUZZLE}"/></svg>`;}
   window.CFD={
@@ -79,7 +121,10 @@
       tl.innerHTML='<i></i><span>Every decision starts with them</span><i></i>';
       o.wall.appendChild(tl);
       CFD.setTag(o.tag);
+      addEventListener('resize',()=>requestAnimationFrame(fitPill));
+      if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>requestAnimationFrame(fitPill));
+      setTimeout(fitPill,1500);
     },
-    setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');}
+    setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');requestAnimationFrame(fitPill);}
   };
 })();
