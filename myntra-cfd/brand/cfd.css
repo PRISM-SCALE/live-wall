@@ -44,38 +44,38 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 .cfd-headsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:2}
 .cfd-pill{z-index:1}
 .cfd-thread path{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.cfd-thread .glow{opacity:.55}
-/* travelling light, one 14 s journey: fades in on the left line, runs round the avatar loop and behind
-   "mer" (lighting the artwork's own ribbon through a mask), past the heart, splits round the hashtag pill
-   (top and bottom edges together), meets again on the right and dissolves at the screen edge. */
+.cfd-thread .glow{opacity:.9}
+/* travelling light, one 16 s journey: fades in at the left edge, passes under the Myntra logo, runs into the
+   artwork's ribbon round the avatar and behind "mer" (lit through a mask), past the heart, splits round the
+   hashtag pill, meets again on the right and dissolves at the screen edge. */
 .cfd-flow path{fill:none;stroke-linecap:round;stroke-dasharray:60 1000;stroke-dashoffset:60}
-.cfd-flow .halo{stroke:#ffe3a8;stroke-width:10;opacity:.8}
-.cfd-flow .core{stroke:#fff;stroke-width:2.6}
+.cfd-flow .halo{stroke:#ffe3a8;stroke-width:11;opacity:.85}
+.cfd-flow .core{stroke:#fff;stroke-width:2.8}
 .cfd-flow.m path{stroke-dasharray:110 1000;stroke-dashoffset:110}
 .cfd-flow.m .halo{stroke:#fff3cf;stroke-width:14;opacity:.55}
 .cfd-flow.m .core{stroke:#fff;stroke-width:3;opacity:.8}
 .cfd-flow.p path{stroke-dasharray:150 1000;stroke-dashoffset:150}
 .cfd-flow.x path{stroke-dasharray:110 1000;stroke-dashoffset:110}
-.cfd-flow.l path{animation:cfdFlowL 14s linear infinite}
-.cfd-flow.m path{animation:cfdFlowM 14s linear infinite}
-.cfd-flow.r path{animation:cfdFlowR 14s linear infinite}
-.cfd-flow.p path{animation:cfdFlowP 14s linear infinite}
-.cfd-flow.x path{animation:cfdFlowX 14s linear infinite}
-.cfd-flow.l{animation:cfdFadeL 14s ease-in-out infinite}
-.cfd-flow.m{animation:cfdFadeM 14s ease-in-out infinite}
-.cfd-flow.r{animation:cfdFadeR 14s ease-in-out infinite}
-.cfd-flow.p{animation:cfdFadeP 14s ease-in-out infinite}
-.cfd-flow.x{animation:cfdFadeX 14s ease-in-out infinite}
-@keyframes cfdFlowL{0%{stroke-dashoffset:60}30%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFlowM{0%,28%{stroke-dashoffset:110}50%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFlowR{0%,48%{stroke-dashoffset:60}69%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFlowP{0%,67.5%{stroke-dashoffset:150}80%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFlowX{0%,78.5%{stroke-dashoffset:110}95%,100%{stroke-dashoffset:-1000}}
-@keyframes cfdFadeL{0%{opacity:0}5%{opacity:1}26%{opacity:1}30%,100%{opacity:0}}
-@keyframes cfdFadeM{0%,28%{opacity:0}31%{opacity:1}47%{opacity:1}50%,100%{opacity:0}}
-@keyframes cfdFadeR{0%,48%{opacity:0}51%{opacity:1}67%{opacity:1}69.5%,100%{opacity:0}}
-@keyframes cfdFadeP{0%,67.5%{opacity:0}69.5%{opacity:1}78%{opacity:1}80.5%,100%{opacity:0}}
-@keyframes cfdFadeX{0%,78.5%{opacity:0}80.5%{opacity:1}88%{opacity:.85}95%,100%{opacity:0}}
+.cfd-flow.l path{animation:cfdFlowL 16s linear infinite}
+.cfd-flow.m path{animation:cfdFlowM 16s linear infinite}
+.cfd-flow.r path{animation:cfdFlowR 16s linear infinite}
+.cfd-flow.p path{animation:cfdFlowP 16s linear infinite}
+.cfd-flow.x path{animation:cfdFlowX 16s linear infinite}
+.cfd-flow.l{animation:cfdFadeL 16s ease-in-out infinite}
+.cfd-flow.m{animation:cfdFadeM 16s ease-in-out infinite}
+.cfd-flow.r{animation:cfdFadeR 16s ease-in-out infinite}
+.cfd-flow.p{animation:cfdFadeP 16s ease-in-out infinite}
+.cfd-flow.x{animation:cfdFadeX 16s ease-in-out infinite}
+@keyframes cfdFlowL{0%{stroke-dashoffset:60}31%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowM{0%,29.5%{stroke-dashoffset:110}48%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowR{0%,46%{stroke-dashoffset:60}63%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowP{0%,61.5%{stroke-dashoffset:150}74%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFlowX{0%,72.5%{stroke-dashoffset:110}92%,100%{stroke-dashoffset:-1000}}
+@keyframes cfdFadeL{0%{opacity:0}3%{opacity:1}29%{opacity:1}31%,100%{opacity:0}}
+@keyframes cfdFadeM{0%,29.5%{opacity:0}31.5%{opacity:1}46%{opacity:1}48%,100%{opacity:0}}
+@keyframes cfdFadeR{0%,46%{opacity:0}48%{opacity:1}61.5%{opacity:1}63.5%,100%{opacity:0}}
+@keyframes cfdFadeP{0%,61.5%{opacity:0}63%{opacity:1}72.5%{opacity:1}74.5%,100%{opacity:0}}
+@keyframes cfdFadeX{0%,72.5%{opacity:0}74.5%{opacity:1}84%{opacity:.85}92%,100%{opacity:0}}
 .cfd-pill{position:absolute;right:2.4vw;top:calc(var(--cfd-head) * .4167);transform:translateY(-50%);
   display:inline-flex;align-items:center;gap:.52vw;padding:.52vw .94vw .52vw .8vw;border-radius:999px;
   font-weight:700;font-size:max(1.56vw,12px);letter-spacing:.01em;color:#fff;

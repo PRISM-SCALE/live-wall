@@ -1,10 +1,11 @@
 /* Myntra · Customer First Day — premium wall theme.
-   The lockup (Customer + avatar + First Day) and the Myntra logo are the real artwork, lifted out of
-   Customer_First_Day_KV.ai as see-through images (kv-lockup.webp, kv-logo.webp).
+   The lockup (Customer + avatar + First Day) is the real artwork, lifted out of
+   Customer_First_Day_KV.ai as a see-through image (kv-lockup.webp). The logo is the official Myntra SVG
+   with the wordmark in white (myntra-logo-white.svg).
    The header is one SVG in a 1920×240 box. One glowing thread runs across it:
-     left edge → into the artwork's own ribbon (round the avatar, behind "mer") → heart →
+     left edge → under the Myntra logo → behind the "C" into the artwork's own ribbon (round the avatar, behind "mer") → heart →
      around the hashtag pill (it draws the pill's outline) → right edge.
-   A travelling light makes that whole journey every 14 s.
+   A travelling light makes that whole journey (splitting round the hashtag pill) every 16 s.
    Usage: CFD.mount({kind:'instagram'|'linkedin', tag:'#…', wall:el}) · CFD.setTag('#…') */
 (function(){
   const PUZZLE='M30 50h45c-6-28 10-46 30-46s36 18 30 46h45v45c28-6 46 10 46 30s-18 36-46 30v45h-45c6 28-10 46-30 46s-36-18-30-46H30v-45c-28 6-46-10-46-30s18-36 46-30z';
@@ -13,19 +14,19 @@
   // Artwork placement in the 1920×240 header box: lockup covers KV x190–1620, y338–838 at scale .43
   const LK={x:633,y:12,w:615,h:215};
 
-  // Left thread. The last segment (x633→697) lies exactly on the artwork's own ribbon, measured from the KV,
-  // where the two crossfade, so it reads as one stroke. Two shapes; the far-left end slowly breathes.
-  const LJOIN=' C 653 55.5, 677 64.5, 697 68.5';
-  const LEFT_A='M-30 182 C 280 186, 563 -21.9, 633 38.3'+LJOIN;
-  const LEFT_B='M-30 168 C 260 206, 563 -21.9, 633 38.3'+LJOIN;
+  // Left thread: one smooth curve from the left edge, dipping under the Myntra logo, rising gently and
+  // tucking in behind the "C" (the artwork's own ribbon tail left of the C was removed so nothing has to
+  // line up there). Its far-left end slowly breathes.
+  const LEFT_A='M-30 128 C 60 166, 150 182, 260 176 C 370 170, 540 118, 640 80 C 690 62, 710 66, 722 68';
+  const LEFT_B='M-30 110 C 60 160, 150 186, 260 180 C 370 174, 540 118, 640 80 C 690 62, 710 66, 722 68';
   // Middle: route of the artwork's ribbon (round the avatar, behind "mer"); light only, masked to the ribbon.
   const MID='M698 69 C716.1 69.0 773.5 70.1 809.3 67.9 C845.1 65.7 891.7 61.0 912.5 55.9 C933.3 50.7 927.5 41.8 934.0 36.9 C940.5 32.1 945.1 29.1 951.2 26.6 C957.3 24.1 963.7 22.4 970.5 21.9 C977.4 21.4 986.0 21.8 992.0 23.6 C998.1 25.4 1003.4 28.3 1007.1 32.6 C1010.8 36.9 1013.0 43.7 1014.4 49.4 C1015.8 55.1 1016.1 60.5 1015.7 66.6 C1015.3 72.7 1013.3 80.4 1012.3 86.0 C1011.3 91.5 1007.7 96.1 1009.7 99.7 C1011.7 103.3 1019.0 105.8 1024.3 107.5 C1029.6 109.1 1027.2 109.9 1041.5 109.6 C1055.8 109.3 1090.2 107.8 1110.3 105.7 C1130.4 103.7 1147.6 98.6 1161.9 97.1 C1176.2 95.7 1186.3 96.3 1196.3 97.1 C1206.3 98.0 1217.8 101.4 1222.1 102.3';
-  // Right thread: leaves the artwork on its own line (measured: 1222,102 rising to 1248,97.5), one smooth curve
-  // to the heart, then to the pill. The pill end is filled in at run time (the pill's width follows the hashtag).
+  // Right thread: starts behind the stem of the "r" (the artwork's ribbon right of it was removed), one gentle
+  // curve to the heart, then to the pill. The pill end is filled in at run time (the pill's width follows the hashtag).
   const HX=1372, HY=100;
   const HEART=`C ${HX-22} ${HY-18}, ${HX-44} ${HY-36}, ${HX-34} ${HY-53} C ${HX-24} ${HY-70}, ${HX-2} ${HY-66}, ${HX} ${HY-49} `
     +`C ${HX+2} ${HY-66}, ${HX+24} ${HY-70}, ${HX+34} ${HY-53} C ${HX+44} ${HY-36}, ${HX+22} ${HY-18}, ${HX} ${HY} `;
-  const rightPath=(pl,cy,b)=>`M1222 102.3 C 1262 92, ${b?1336:1340} ${b?111:108}, ${HX} ${HY} `+HEART
+  const rightPath=(pl,cy,b)=>`M1188 100.2 C 1250 ${b?104:101}, ${b?1312:1318} ${b?114:108}, ${HX} ${HY} `+HEART
     +`C ${HX+40} ${b?106:104}, ${pl-46} ${cy}, ${pl} ${cy}`;
   const exitPath=(pr,cy,b)=>`M${pr} ${cy} C ${pr+60} ${cy}, ${pr+90} ${b?cy+10:cy-6}, 1960 ${b?cy-8:cy+2}`;
   const pillHalf=(pl,pr,cy,r,top)=>top
@@ -39,9 +40,9 @@
   // `key` marks the paths so their shape can be updated later (right side follows the pill).
   function thread(a,b,dur,grad,side,key){
     const bw=b?breathe(a,b,dur):'', k=key?` data-k="${key}"`:'';
-    return `<path class="glow"${k} d="${a}" stroke="url(#${grad})" stroke-width="7" filter="url(#cfdGlow)">${bw}</path>
-      <path${k} d="${a}" stroke="url(#${grad})" stroke-width="2.4">${bw}</path>
-      <path${k} d="${a}" stroke="#fff" stroke-opacity=".6" stroke-width=".9">${bw}</path>
+    return `<path class="glow"${k} d="${a}" stroke="url(#${grad})" stroke-width="10" filter="url(#cfdGlow)">${bw}</path>
+      <path${k} d="${a}" stroke="url(#${grad})" stroke-width="3.2">${bw}</path>
+      <path${k} d="${a}" stroke="#fff" stroke-opacity=".8" stroke-width="1.2">${bw}</path>
       <g class="cfd-flow ${side}">
         <path class="halo"${k} d="${a}" pathLength="1000" filter="url(#cfdSoft)">${bw}</path>
         <path class="core"${k} d="${a}" pathLength="1000" filter="url(#cfdSoftS)">${bw}</path>
@@ -59,13 +60,13 @@
       <div class="cfd-pill"><span class="cfd-live"></span><span class="cfd-net">${kind==='linkedin'?IN:IG}</span><span class="cfd-tag"></span></div>
       <svg class="cfd-headsvg" viewBox="0 0 1920 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <defs>
-          <linearGradient id="cfdRibL" gradientUnits="userSpaceOnUse" x1="0" x2="697" y1="0" y2="0">
-            <stop offset="0" stop-color="#ff6fd2" stop-opacity="0"/><stop offset=".12" stop-color="#ff6fd2"/>
-            <stop offset=".9" stop-color="#ff8fc0"/><stop offset="1" stop-color="#ffa0b8" stop-opacity="0"/></linearGradient>
-          <linearGradient id="cfdRibR" gradientUnits="userSpaceOnUse" x1="1222" x2="1920" y1="0" y2="0">
-            <stop offset="0" stop-color="#ffc14a" stop-opacity="0"/><stop offset=".04" stop-color="#ffc14a"/>
+          <linearGradient id="cfdRibL" gradientUnits="userSpaceOnUse" x1="0" x2="722" y1="0" y2="0">
+            <stop offset="0" stop-color="#ff7ad6" stop-opacity=".15"/><stop offset=".05" stop-color="#ff7ad6"/><stop offset=".55" stop-color="#ff9ec8"/>
+            <stop offset="1" stop-color="#ffa6b4"/></linearGradient>
+          <linearGradient id="cfdRibR" gradientUnits="userSpaceOnUse" x1="1188" x2="1920" y1="0" y2="0">
+            <stop offset="0" stop-color="#ffc14a"/>
             <stop offset=".45" stop-color="#ffd66a"/><stop offset="1" stop-color="#fff0a0"/></linearGradient>
-          <filter id="cfdGlow" x="-5%" y="-100%" width="110%" height="300%"><feGaussianBlur stdDeviation="4.5"/></filter>
+          <filter id="cfdGlow" x="-5%" y="-100%" width="110%" height="300%"><feGaussianBlur stdDeviation="5.5"/></filter>
           <filter id="cfdSoft" x="-10%" y="-200%" width="120%" height="500%"><feGaussianBlur stdDeviation="9"/></filter>
           <filter id="cfdSoftS" x="-10%" y="-200%" width="120%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter>
           <filter id="cfdLift" x="-10%" y="-20%" width="120%" height="150%">
@@ -82,7 +83,7 @@
           ${thread(pillHalf(G.pl,G.pr,G.cy,G.r,0),'',0,'cfdRibR','p','pb')}
           ${thread(exitPath(G.pr,G.cy,0),exitPath(G.pr,G.cy,1),9,'cfdRibR','x','x')}
         </g>
-        <image href="${base}kv-logo.webp" x="60" y="46" width="150" height="107" filter="url(#cfdLiftS)"/>
+        <image href="${base}myntra-logo-white.svg" x="50" y="61" width="284" height="78" filter="url(#cfdLiftS)"/>
         <image class="cfd-lockup" href="${base}kv-lockup.webp" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
         <g class="cfd-flow m" mask="url(#cfdRibMask)">
           <path class="halo" d="${MID}" pathLength="1000"/>
