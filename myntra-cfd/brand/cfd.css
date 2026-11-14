@@ -1,0 +1,74 @@
+/* Myntra · Customer First Day — wall theme
+   Colours and effects taken from Customer_First_Day_KV.ai (gradient sampled from the artwork). */
+:root{
+  --cfd-plum:#8d0255; --cfd-magenta:#ba027a; --cfd-rose:#e5146e; --cfd-coral:#f4412d;
+  --cfd-orange:#f98a16; --cfd-ember:#a03e17; --cfd-hot:#ff29a3; --cfd-violet:#7a1cf0;
+  --cfd-gold:#ffd25a;
+}
+html,body{background:var(--cfd-magenta)!important}
+body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
+
+/* ---------- KV backdrop ---------- */
+#wall{background:
+    radial-gradient(70% 60% at 50% 38%, rgba(244,43,98,.55), transparent 70%),
+    radial-gradient(60% 70% at 0% 100%, rgba(120,0,70,.75), transparent 65%),
+    radial-gradient(55% 60% at 100% 100%, rgba(140,52,18,.7), transparent 60%),
+    linear-gradient(100deg, #a8026c 0%, #c4037a 16%, #e01070 38%, #f42f4a 58%, #f6552a 74%, #f98a16 100%)!important;}
+#wall .blob{display:none!important}
+.cfd-decor{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.cfd-puzzle{position:absolute;opacity:.13;filter:drop-shadow(0 30px 60px rgba(60,0,30,.25))}
+.cfd-puzzle path{fill:#fff}
+.cfd-puzzle.tl{width:30vw;left:-6vw;top:-4vw;transform:rotate(-22deg);animation:cfdFloatA 26s ease-in-out infinite}
+.cfd-puzzle.bl{width:26vw;left:-4vw;bottom:-9vw;transform:rotate(18deg);animation:cfdFloatB 30s ease-in-out infinite}
+.cfd-puzzle.tr{width:28vw;right:-5vw;top:4vh;transform:rotate(28deg);animation:cfdFloatB 28s ease-in-out infinite}
+.cfd-puzzle.br{width:24vw;right:-3vw;bottom:-6vw;transform:rotate(-30deg);animation:cfdFloatA 32s ease-in-out infinite}
+@keyframes cfdFloatA{50%{translate:1.2vw 1.4vw;rotate:4deg}}
+@keyframes cfdFloatB{50%{translate:-1.2vw 1vw;rotate:-4deg}}
+.cfd-ribbon{position:absolute;left:0;top:0;width:100%;height:20vh;z-index:7;pointer-events:none;overflow:visible}
+.cfd-ribbon .glow{animation:cfdPulse 4s ease-in-out infinite}
+@keyframes cfdPulse{50%{opacity:.55}}
+
+/* ---------- header lockup ---------- */
+.cfd-head{position:absolute;top:0;left:0;right:0;height:17vh;z-index:8;display:flex;align-items:center;
+  justify-content:space-between;padding:0 2.6vw;pointer-events:none}
+.cfd-lockup{display:flex;align-items:center;gap:1.4vw}
+.cfd-logo{height:8vh;width:auto;filter:drop-shadow(.22vh 0 0 #fff) drop-shadow(-.22vh 0 0 #fff) drop-shadow(0 .22vh 0 #fff) drop-shadow(0 -.22vh 0 #fff) drop-shadow(0 .6vh 1.4vh rgba(90,0,40,.45))}
+.cfd-title{position:relative;line-height:1;padding-bottom:5vh;margin-top:1.6vh}
+.cfd-customer{display:flex;align-items:center;font-weight:800;font-size:5.6vh;letter-spacing:-.02em;color:#fff;
+  text-shadow:0 .5vh 1.6vh rgba(90,0,40,.35)}
+.cfd-avatar{width:4.7vh;height:4.7vh;margin:0 .15vh;border-radius:50%;position:relative;flex:0 0 auto;
+  background:radial-gradient(circle at 50% 22%, #ff4fc3 0%, #e82aa8 40%, #8b1cf0 100%);
+  box-shadow:0 0 0 .25vh rgba(255,170,90,.9), 0 0 1.6vh .4vh rgba(255,120,60,.75), inset 0 -.6vh 1vh rgba(60,0,120,.45)}
+.cfd-avatar::before{content:"";position:absolute;inset:7% 18% 52% 18%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))}
+.cfd-avatar svg{position:absolute;inset:16% 16% 10% 16%;width:68%;height:74%}
+.cfd-firstday{position:absolute;left:30%;bottom:-2.2vh;white-space:nowrap;font-family:'Sacramento',cursive;font-size:7.6vh;
+  background:linear-gradient(90deg,#ff9cf0 0%,#ffa3c8 35%,#ffcf7a 65%,#fff08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 .25vh rgba(255,255,255,.9)) drop-shadow(0 0 1.2vh rgba(255,150,70,.75))}
+.cfd-pill{display:inline-flex;align-items:center;gap:1vh;padding:1.2vh 2.4vh;border-radius:999px;font-weight:700;font-size:2.6vh;color:#fff;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 1vh 3vh rgba(90,0,40,.3), inset 0 1px 0 rgba(255,255,255,.4)}
+.cfd-pill svg{width:2.8vh;height:2.8vh}
+.cfd-pill .cfd-in{width:2.8vh;height:2.8vh;border-radius:.5vh;background:#fff;color:#c4037a;font-weight:800;font-size:1.9vh;display:flex;align-items:center;justify-content:center}
+.cfd-live{width:1.1vh;height:1.1vh;border-radius:50%;background:#fff;animation:cfdPing 1.8s ease-out infinite}
+@keyframes cfdPing{0%{box-shadow:0 0 0 0 rgba(255,255,255,.75)}100%{box-shadow:0 0 0 1.4vh rgba(255,255,255,0)}}
+.cfd-tagline{position:absolute;left:0;right:0;bottom:1.6vh;z-index:8;text-align:center;font-weight:400;font-size:2vh;
+  color:rgba(255,255,255,.92);letter-spacing:.01em;text-shadow:0 .3vh 1vh rgba(90,0,40,.5);pointer-events:none}
+
+/* ---------- cards ---------- */
+.card{border-radius:18px!important;box-shadow:0 1.6vh 4vh rgba(80,0,40,.38), 0 0 0 1px rgba(255,255,255,.35)!important}
+.card.custom{background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.42)!important;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.card.custom::before{display:none!important}
+.card.custom .kicker{color:#ffd25a!important}
+
+/* ---------- responsive (phones / small screens) ---------- */
+@media(max-width:900px){
+  .cfd-head{height:11vh;padding:0 3vw}
+  .cfd-logo{height:5vh}
+  .cfd-customer{font-size:3.4vh}.cfd-avatar{width:2.9vh;height:2.9vh}
+  .cfd-firstday{font-size:4vh}
+  .cfd-pill{font-size:1.7vh;padding:.8vh 1.6vh}
+  .cfd-tagline{display:none}
+}
+@media(prefers-reduced-motion:reduce){.cfd-puzzle,.cfd-ribbon .glow,.cfd-live{animation:none!important}}
