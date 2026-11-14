@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagram Live Wall</title>
+<!-- Optional live sync between screens (only used if FIREBASE_CONFIG below is filled in) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#e1306c; --accent2:#833ab4; --bg:#120b1f;
+  --ink:#fff; --ink-dim:rgba(255,255,255,.62);
+  --gap:1.1vw; --cols:4;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;
+  font-family:'Inter',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+body.hidecursor{cursor:none}
+
+/* ---------- backdrop ---------- */
+#wall{position:fixed;inset:0;overflow:hidden;
+  background:
+    radial-gradient(110% 90% at 85% 0%, color-mix(in srgb,var(--accent) 30%,transparent), transparent 55%),
+    radial-gradient(110% 100% at 5% 100%, color-mix(in srgb,var(--accent2) 32%,transparent), transparent 55%),
+    var(--bg);}
+
+/* ---------- header ---------- */
+.header{position:absolute;top:0;left:0;right:0;height:13vh;z-index:8;display:flex;align-items:center;
+  justify-content:space-between;gap:2vw;padding:0 3vw;pointer-events:none;
+  background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 80%,transparent),transparent);}
+.brand{display:flex;align-items:center;gap:1.4vw;min-width:0}
+.brand img{height:7.5vh;max-width:22vw;object-fit:contain;display:none;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4))}
+.brand img.show{display:block}
+.brand .ev{font-family:'Poppins';font-weight:600;font-size:3.2vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tagpill{display:inline-flex;align-items:center;gap:.8vw;padding:1vh 2vh;border-radius:999px;flex:0 0 auto;
+  font-family:'Poppins';font-weight:600;font-size:2.4vh;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 30px -8px var(--accent);}
+.tagpill svg{width:2.6vh;height:2.6vh}
+.livedot{width:1vh;height:1vh;border-radius:50%;background:#fff;animation:ping 1.8s ease-out infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}100%{box-shadow:0 0 0 1.4vh rgba(255,255,255,0)}}
+
+/* ---------- columns ---------- */
+/* NOTE: no CSS mask on the grid — Chromium won't paint cross-origin iframes (the Instagram
+   embeds) under mask-image. The soft edges are plain gradient strips laid on top instead. */
+.grid{position:absolute;left:0;right:0;top:13vh;bottom:0;z-index:4;display:flex;gap:var(--gap);
+  padding:0 var(--gap);overflow:hidden;}
+.fade{position:absolute;left:0;right:0;z-index:6;pointer-events:none}
+.fade.top{top:13vh;height:4vh;background:linear-gradient(to bottom,var(--bg),transparent)}
+.fade.bot{bottom:0;height:6vh;background:linear-gradient(to top,var(--bg),transparent)}
+.col{flex:1;min-width:0;overflow:hidden;position:relative}
+/* Scrolling is driven from JavaScript (requestAnimationFrame), not a CSS animation:
+   Chromium doesn't paint the cross-origin Instagram iframes inside a CSS-animated layer. */
+.colinner{display:flex;flex-direction:column;gap:var(--gap)}
+
+.card{width:100%;border-radius:16px;overflow:hidden;position:relative;box-shadow:0 12px 34px rgba(0,0,0,.4);flex:0 0 auto}
+.card.ig{background:#fff;align-self:center}
+.card.ig .scaler{transform-origin:top left}
+.card.ig iframe{display:block;border:0;background:#fff;width:100%}
+.card.custom{background:color-mix(in srgb,var(--bg) 70%,#fff 6%);border:1px solid rgba(255,255,255,.12);
+  padding:clamp(14px,1.2vw,26px);backdrop-filter:blur(6px)}
+.card.custom .kicker{font-size:clamp(11px,.7vw,15px);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:.6vw}
+.card.custom .title{font-family:'Poppins';font-weight:600;font-size:clamp(16px,1.3vw,28px);line-height:1.2}
+.card.custom .text{margin-top:.6vw;font-size:clamp(13px,.95vw,20px);line-height:1.5;color:rgba(255,255,255,.88);white-space:pre-wrap}
+.card.custom img{width:100%;display:block;border-radius:10px;margin-top:.8vw}
+
+/* ---------- empty + holding screen ---------- */
+.emptywall{position:absolute;inset:13vh 0 0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.6vh;text-align:center;padding:0 6vw}
+.emptywall.show{display:flex}
+.emptywall h2{font-family:'Poppins';font-weight:600;font-size:3vh;margin:0}
+.emptywall p{color:var(--ink-dim);font-size:1.8vh;margin:0;max-width:46ch}
+#holding{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4vh;text-align:center;
+  background:radial-gradient(90% 80% at 50% 40%,color-mix(in srgb,var(--accent2) 35%,var(--bg)),var(--bg));}
+#holding.show{display:flex}
+#holding img{max-height:22vh;max-width:50vw;object-fit:contain;display:none}
+#holding img.show{display:block}
+#holding .big{font-family:'Poppins';font-weight:700;font-size:9vh;line-height:1;
+  background:linear-gradient(135deg,#fff,color-mix(in srgb,var(--accent) 60%,#fff));-webkit-background-clip:text;background-clip:text;color:transparent}
+#holding .msg{font-size:3vh;color:var(--ink-dim);max-width:40ch}
+
+/* ---------- status pill + gear ---------- */
+#conn{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;padding:9px 18px;border-radius:999px;
+  font:600 13px/1 Inter,system-ui,sans-serif;box-shadow:0 10px 30px -10px rgba(0,0,0,.8);transition:opacity .3s;opacity:0;pointer-events:none}
+.gear{position:absolute;top:1.4vh;right:1.4vh;z-index:9;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  cursor:pointer;background:rgba(0,0,0,.35);color:#fff;font-size:19px;opacity:.25;transition:.2s;display:flex;align-items:center;justify-content:center}
+.gear:hover{opacity:1;transform:rotate(30deg)}
+
+/* ---------- control panel ---------- */
+.btn{font-family:'Inter';font-weight:600;font-size:14px;cursor:pointer;border:none;border-radius:10px;padding:11px 18px;color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));transition:.15s}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)}
+.btn.sm{padding:7px 12px;font-size:12.5px;border-radius:8px}
+.btn.danger{background:#b91c1c}
+#admin{position:fixed;inset:0;z-index:20;background:rgba(5,3,12,.84);backdrop-filter:blur(10px);display:none;overflow:auto;padding:28px 0}
+#admin.open{display:block}
+.panel{width:min(1120px,94vw);margin:0 auto;background:#1a1229;border-radius:20px;border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+.panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,.08)}
+.panel-head h1{font-family:'Poppins';font-weight:600;font-size:19px;margin:0;flex:1;min-width:200px}
+.panel-head .sub{color:var(--ink-dim);font-size:12px;font-family:'Inter';font-weight:400}
+.panel-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+@media(max-width:860px){.panel-body{grid-template-columns:1fr}}
+.col2{padding:20px 24px}
+.col2.left{border-right:1px solid rgba(255,255,255,.08)}
+.col2 h3{font-family:'Poppins';font-weight:600;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 12px}
+.seg{display:flex;gap:6px;background:rgba(0,0,0,.25);padding:5px;border-radius:12px;margin-bottom:14px}
+.seg button{flex:1;padding:9px;border:none;border-radius:8px;cursor:pointer;font-family:'Inter';font-weight:600;font-size:13px;color:var(--ink-dim);background:transparent}
+.seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+label{display:block;font-size:12.5px;color:var(--ink-dim);margin:12px 0 6px;font-weight:500}
+input,textarea,select{width:100%;font-family:'Inter';font-size:14px;color:#fff;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;padding:10px 12px;outline:none}
+input[type=color]{padding:3px;height:42px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:110px;line-height:1.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.hidefield{display:none!important}
+.help{font-size:11.5px;color:rgba(255,255,255,.45);margin-top:6px;line-height:1.5}
+.formactions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.msgline{font-size:12.5px;margin-top:10px;min-height:1em}
+.msgline.ok{color:#86efac}.msgline.err{color:#fca5a5}
+.queue{display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto;padding-right:4px}
+.qitem{display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.qitem.off{opacity:.45}
+.qthumb{width:46px;height:46px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.qmeta{flex:1;min-width:0}
+.qn{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px}
+.qbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.04em;background:rgba(225,48,108,.22);color:#ffb3cd}
+.qbadge.custom{background:rgba(131,58,180,.25);color:#d9b8f5}
+.qbadge.hidden{background:rgba(255,255,255,.12);color:#ddd}
+.qt{font-size:12px;color:var(--ink-dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qt a{color:inherit}
+.qact{display:flex;gap:5px;flex:0 0 auto}
+.iconbtn{width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;
+  font-size:14px;display:flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:rgba(255,255,255,.14)}
+.emptyq{color:var(--ink-dim);font-size:13px;text-align:center;padding:26px 0}
+.authbox{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.authok{color:#86efac}
+.lockmsg{margin:0;padding:12px 24px;background:rgba(250,204,21,.12);color:#fde68a;font-size:13px;border-bottom:1px solid rgba(255,255,255,.08)}
+.keys{font-size:12px;color:var(--ink-dim);line-height:1.8;margin-top:14px}
+.keys kbd{background:rgba(255,255,255,.12);border-radius:5px;padding:1px 6px;font-family:inherit;color:#fff}
+
+@media(max-width:600px){
+  :root{--gap:3vw}
+  .header{height:9vh}
+  .brand .ev{font-size:2.2vh}
+  .tagpill{font-size:1.8vh}
+  .grid{top:9.5vh}
+  #admin{padding:0}
+  .panel{width:100vw;min-height:100vh;border-radius:0;border:none}
+}
+@media(prefers-reduced-motion:reduce){.livedot{animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="wall">
+  <button class="gear" id="gear" title="Control panel (A)">⚙</button>
+  <header class="header">
+    <div class="brand"><img id="logo" alt=""><div class="ev" id="evname"></div></div>
+    <div class="tagpill"><span class="livedot"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg>
+      <span id="tagtext">#yourhashtag</span></div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <div class="fade top"></div><div class="fade bot"></div>
+  <div class="emptywall" id="emptywall">
+    <h2>The wall is ready</h2>
+    <p>No posts yet. Open the control panel (press A) and paste Instagram post links.</p>
+    <button class="btn" onclick="openAdmin()">Add the first posts</button>
+  </div>
+</div>
+
+<div id="holding">
+  <img id="hlogo" alt="">
+  <div class="big" id="htag">#yourhashtag</div>
+  <div class="msg" id="hmsg">Post on Instagram with our hashtag to appear on the wall</div>
+</div>
+
+<div id="conn"></div>
+
+<div id="admin">
+  <div class="panel">
+    <div class="panel-head">
+      <h1>Instagram Wall · Control <div class="sub" id="modeinfo"></div></h1>
+      <div id="authbox" class="authbox"></div>
+      <button class="btn danger sm" id="blankbtn" onclick="toggleHolding()">Blank screen (B)</button>
+      <button class="btn ghost sm" onclick="exportJSON()">Export</button>
+      <button class="btn ghost sm" onclick="document.getElementById('importfile').click()">Import</button>
+      <input type="file" id="importfile" accept="application/json" style="display:none">
+      <button class="btn sm" onclick="closeAdmin()">Back to wall ✕</button>
+    </div>
+    <div id="lockmsg" class="lockmsg hidefield">You're viewing only. Sign in with a staff Google account (top right) to add, hide or change posts.</div>
+    <div class="panel-body">
+      <div class="col2 left">
+        <div class="seg">
+          <button id="tabLinks" class="on" onclick="setTab('links')">Instagram links</button>
+          <button id="tabCustom" onclick="setTab('custom')">Announcement</button>
+          <button id="tabBrand" onclick="setTab('brand')">Branding</button>
+        </div>
+
+        <div id="modeLinks">
+          <label>Instagram post or reel links (one per line, or several pasted together)</label>
+          <textarea id="f_links" placeholder="https://www.instagram.com/p/ABC123xyz/&#10;https://www.instagram.com/reel/XYZ789abc/"></textarea>
+          <div class="help">On Instagram: open the post → ⋯ / share → <em>Copy link</em>. Only <b>public</b> posts show; private accounts and posts with embedding turned off appear blank — delete those.</div>
+          <div class="formactions"><button class="btn" onclick="addLinks()">Add to wall</button></div>
+          <div class="msgline" id="linkmsg"></div>
+        </div>
+
+        <div id="modeCustom" class="hidefield">
+          <label>Small label (optional)</label><input id="f_kicker" placeholder="Up next · Sponsor · Announcement">
+          <label>Title</label><input id="f_title" placeholder="Keynote starts at 4:00 PM in Hall A">
+          <label>Text (optional)</label><textarea id="f_text" placeholder="Anything else to say"></textarea>
+          <label>Image URL (optional, https only)</label><input id="f_img" placeholder="https://…">
+          <div class="formactions"><button class="btn" onclick="addCustom()">Add to wall</button></div>
+        </div>
+
+        <div id="modeBrand" class="hidefield">
+          <div class="row2">
+            <div><label>Event name</label><input id="b_event" placeholder="Annual Summit 2026"></div>
+            <div><label>Hashtag</label><input id="b_tag" placeholder="#yourhashtag"></div>
+          </div>
+          <label>Logo (PNG/SVG, under 500 KB)</label><input type="file" id="b_logo" accept="image/*">
+          <div class="formactions" style="margin-top:8px"><button class="btn ghost sm" onclick="clearLogo()">Remove logo</button></div>
+          <div class="row3">
+            <div><label>Accent</label><input type="color" id="b_accent" value="#e1306c"></div>
+            <div><label>Second colour</label><input type="color" id="b_accent2" value="#833ab4"></div>
+            <div><label>Background</label><input type="color" id="b_bg" value="#120b1f"></div>
+          </div>
+          <label>Blank-screen message</label><input id="b_hmsg" placeholder="Post on Instagram with our hashtag to appear on the wall">
+          <div class="row3">
+            <div><label>Columns</label><select id="s_cols"><option>2</option><option>3</option><option selected>4</option><option>5</option></select></div>
+            <div><label>Scroll speed</label><select id="s_speed"><option value="18">Slow</option><option value="30" selected>Medium</option><option value="48">Fast</option></select></div>
+            <div><label>Captions</label><select id="s_caps"><option value="0" selected>Hide</option><option value="1">Show</option></select></div>
+          </div>
+          <div class="formactions"><button class="btn" onclick="saveBrand()">Apply</button></div>
+        </div>
+
+        <div class="keys">
+          Keys on the wall: <kbd>A</kbd> control panel · <kbd>F</kbd> full screen · <kbd>B</kbd> blank / holding screen · <kbd>R</kbd> reload<br>
+          Instagram posts load from Instagram, so the wall needs internet. If it drops, press <kbd>B</kbd>.
+        </div>
+      </div>
+
+      <div class="col2">
+        <h3>Posts <span id="qcount" style="font-weight:400"></span></h3>
+        <div class="queue" id="queue"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   OPTIONAL LIVE SYNC (Firebase Realtime Database)
+   Leave databaseURL empty to run in LOCAL mode: everything is
+   saved in this browser only (fine when one laptop drives the TV).
+   To control the TV from another device, create a NEW Firebase
+   project (don't reuse another client's), paste its config here,
+   and lock the database rules down before the event.
+   Each event gets its own wall: open index.html?wall=eventname
+   ============================================================ */
+// Same Firebase project as the LinkedIn wall. Security: the database rules let anyone READ a wall
+// (the TV screens), but only Google accounts listed under /staff in the database can WRITE.
+// To add a staff member: Firebase console → Realtime Database → Data → staff → add
+//   key = their email with "." replaced by ","  (e.g. rohan@prismscale,com)   value = true
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyCT5C4MeCLW0loXl57fX4TqtFIZQU5nLAU",
+  authDomain:"mynnovaite.firebaseapp.com",
+  databaseURL:"https://mynnovaite-default-rtdb.firebaseio.com",
+  projectId:"mynnovaite",
+  storageBucket:"mynnovaite.firebasestorage.app",
+  messagingSenderId:"464160762164",
+  appId:"1:464160762164:web:d8b695116e81b20fe99d61"
+};
+const ADMIN_PASSCODE = "";   // not used any more — staff sign in with Google instead
+
+const WALL_ID = (new URLSearchParams(location.search).get('wall')||'default').replace(/[^a-z0-9_-]/gi,'').slice(0,40)||'default';
+// Phone / remote control mode: add &admin=1 to the link. Opens the control panel and skips loading the wall itself.
+const ADMIN_MODE = new URLSearchParams(location.search).has('admin');
+const useCloud = !!FIREBASE_CONFIG.databaseURL && typeof firebase!=='undefined';
+const KEY = 'igwall_v1_'+WALL_ID;
+const DEFAULT_SETTINGS = {cols:4,speed:30,caps:0,event:'',tag:'#yourhashtag',logo:'',accent:'#e1306c',accent2:'#833ab4',bg:'#120b1f',hmsg:'',holding:false};
+let posts=[], settings={...DEFAULT_SETTINGS}, tab='links', wallRef=null;
+
+const $=id=>document.getElementById(id);
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function safeUrl(u){try{const x=new URL(u);return x.protocol==='https:'?x.href:'';}catch(e){return '';}}
+function safeColor(c,f){return /^#[0-9a-f]{6}$/i.test(c||'')?c:f;}
+
+/* ---------- storage ---------- */
+const store={_m:{},get(k){try{return localStorage.getItem(k)}catch(e){return this._m[k]??null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){this._m[k]=v}}};
+function load(){try{const d=JSON.parse(store.get(KEY)||'null');if(d){posts=d.posts||[];settings={...DEFAULT_SETTINGS,...(d.settings||{})};}}catch(e){}}
+function save(){
+  store.set(KEY,JSON.stringify({posts,settings}));   // local copy always (also a cache in cloud mode)
+  if(useCloud&&wallRef){
+    if(!staffUser){setStatus('Not saved — sign in with Google (staff) to edit the wall','err');return;}
+    return wallRef.set({posts,settings}).then(()=>setStatus('')).catch(err=>{
+    console.error(err);setStatus(/permission/i.test(err&&err.message)?'Not saved — this Google account is not on the staff list':'Save failed — check the connection','err');});}
+}
+function commit(){save();if(!useCloud)applyAll();}
+
+/* ---------- status pill ---------- */
+function setStatus(text,kind){const el=$('conn');if(!text){el.style.opacity='0';return;}
+  const c=kind==='err'?['#7f1d1d','#fecaca']:kind==='warn'?['#78350f','#fde68a']:['#064e3b','#a7f3d0'];
+  el.style.background=c[0];el.style.color=c[1];el.textContent=text;el.style.opacity='1';}
+// If the internet drops, embeds go blank on reload — switch to the branded holding screen
+// on this screen only (not saved), and switch back when the connection returns.
+let autoHeld=false;
+window.addEventListener('offline',()=>{setStatus('No internet — showing the holding screen until it’s back','warn');
+  if(!settings.holding){autoHeld=true;$('holding').classList.add('show');}});
+window.addEventListener('online',()=>{if(autoHeld){autoHeld=false;applyBrand();}});
+window.addEventListener('online',()=>{setStatus('Back online','ok');setTimeout(()=>setStatus(''),2500);});
+
+/* ---------- cloud sync ---------- */
+let retryDelay=2000,retryTimer=null;
+function subscribe(){
+  clearTimeout(retryTimer);
+  wallRef.on('value',snap=>{retryDelay=2000;setStatus('');const v=snap.val();
+    if(v){posts=v.posts||[];settings={...DEFAULT_SETTINGS,...(v.settings||{})};store.set(KEY,JSON.stringify({posts,settings}));}
+    applyAll();if(adminOpen()){renderQueue();syncForm();}
+  },err=>{console.error(err);setStatus('Wall offline — reconnecting…','warn');wallRef.off();
+    retryTimer=setTimeout(subscribe,retryDelay);retryDelay=Math.min(retryDelay*2,60000);});
+}
+/* ---------- staff sign-in (Google) ---------- */
+let staffUser=null;
+function canEdit(){return !useCloud||!!staffUser;}
+function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
+  firebase.auth().signInWithPopup(p).catch(err=>{console.error(err);alert('Sign-in failed: '+(err&&err.message||err));});}
+function signOut(){firebase.auth().signOut();}
+function updateAuthUI(){
+  const box=$('authbox');if(!box)return;
+  if(!useCloud){box.innerHTML='';return;}
+  box.innerHTML=staffUser
+    ?`<span class="authok">Signed in as ${esc(staffUser.email)}</span> <button class="btn ghost sm" onclick="signOut()">Sign out</button>`
+    :`<button class="btn sm" onclick="signIn()">Sign in with Google to edit</button>`;
+  $('lockmsg').classList.toggle('hidefield',!!staffUser);
+}
+
+function initCloud(){firebase.initializeApp(FIREBASE_CONFIG);wallRef=firebase.database().ref('igwalls/'+WALL_ID);
+  firebase.auth().onAuthStateChanged(u=>{staffUser=u;updateAuthUI();});
+  load();applyAll();   // show the last local copy straight away
+  subscribe();}
+
+/* ---------- Instagram link parsing ---------- */
+// Accepts instagram.com/p/<code>, /reel/<code>, /reels/<code>, /tv/<code> (with or without a username in front).
+function parseInstagram(text){
+  const found=[],seen=new Set();
+  const re=/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]{5,40})/gi;
+  let m;while((m=re.exec(text||''))){const kind=m[1].toLowerCase().startsWith('reel')?'reel':(m[1].toLowerCase()==='tv'?'tv':'p');
+    const code=m[2];if(seen.has(code))continue;seen.add(code);found.push({kind,code});}
+  return found;
+}
+function embedUrl(p){return `https://www.instagram.com/${p.kind==='reel'?'reel':'p'}/${p.code}/embed/${settings.caps?'captioned/':''}`;}
+function postUrl(p){return `https://www.instagram.com/${p.kind==='reel'?'reel':'p'}/${p.code}/`;}
+
+/* ---------- heights reported by Instagram's embed ---------- */
+// Instagram embeds post a MEASURE message with their real height. We remember it per post
+// and resize every copy of that card in place (no re-render, so iframes don't reload).
+const heights={};                 // key: code+caps -> px height at its rendered width
+const loadedCodes=new Set();      // posts whose embed actually loaded (sent a MEASURE)
+let lastBuildAt=Date.now();
+function hkey(code){return code+(settings.caps?'c':'n');}
+function estHeight(w){return Math.round(w*1.25+(settings.caps?190:110));}
+window.addEventListener('message',e=>{
+  if(!/^https:\/\/www\.instagram\.com$/.test(e.origin))return;
+  let d=e.data;if(typeof d==='string'){try{d=JSON.parse(d);}catch(err){return;}}
+  if(!d||d.type!=='MEASURE'||!d.details||!d.details.height)return;
+  const fr=[...document.querySelectorAll('iframe[data-code]')].find(f=>f.contentWindow===e.source);
+  if(!fr)return;
+  const h=Math.round(+d.details.height);if(!(h>100&&h<4000))return;
+  const k=hkey(fr.dataset.code);if(heights[k]===h)return;
+  heights[k]=h;loadedCodes.add(fr.dataset.code);
+  if(adminOpen())renderQueue();
+  document.querySelectorAll(`iframe[data-code="${fr.dataset.code}"]`).forEach(f=>{f.style.height=h+'px';});
+  scheduleReflow();
+});
+
+/* ---------- cards ---------- */
+function cardHTML(p){
+  if(p.type==='ig'){
+    const h=heights[hkey(p.code)]||estHeight(IG_W);
+    return `<div class="card ig"><div class="scaler"><iframe data-code="${esc(p.code)}" src="${esc(embedUrl(p))}"
+      style="width:${IG_W}px;height:${h}px" scrolling="no" allowtransparency="true" loading="eager" title="Instagram post"></iframe></div></div>`;
+  }
+  const img=safeUrl(p.img);
+  return `<div class="card custom">${p.kicker?`<div class="kicker">${esc(p.kicker)}</div>`:''}
+    <div class="title">${esc(p.title)}</div>${p.text?`<div class="text">${esc(p.text)}</div>`:''}
+    ${img?`<img src="${esc(img)}" alt="">`:''}</div>`;
+}
+
+/* ---------- wall build + seamless scroll ---------- */
+const IG_W=400;   // embed render width; scaled to fit the column
+let colOriginals=[],reflowTimer=null;
+function effectiveCols(){const w=innerWidth;if(w<=600)return 1;if(w<=900)return Math.min(2,settings.cols);return settings.cols;}
+function visiblePosts(){return posts.filter(p=>!p.hidden);}
+function buildWall(){
+  const grid=$('grid'),list=visiblePosts(),N=effectiveCols();
+  if(ADMIN_MODE){grid.innerHTML='';colOriginals=[];colState=[];$('emptywall').classList.remove('show');return;}
+  document.documentElement.style.setProperty('--cols',N);
+  $('emptywall').classList.toggle('show',!list.length);
+  colState=[];
+  if(!list.length){grid.innerHTML='';colOriginals=[];return;}
+  const cols=Array.from({length:N},()=>[]);list.forEach((p,i)=>cols[i%N].push(p));
+  colOriginals=cols.map(c=>c.map(cardHTML).join(''));
+  lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
+  // render 3 stacked copies per column once; reflow only changes sizes and the scroll distance
+  grid.innerHTML=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner+inner}</div></div>`).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(reflow));
+}
+function sizeCards(){
+  document.querySelectorAll('.col').forEach(col=>{
+    const cw=col.clientWidth,scale=Math.min(1.25,cw/IG_W);
+    col.querySelectorAll('.card.ig').forEach(card=>{
+      const fr=card.querySelector('iframe');const h=parseFloat(fr.style.height)||estHeight(IG_W);
+      card.querySelector('.scaler').style.transform=`scale(${scale})`;
+      card.style.width=Math.round(IG_W*scale)+'px';card.style.height=Math.round(h*scale)+'px';});
+  });
+}
+// per-column scroll state: {pos, shift}; shift = distance to the identical next copy (0 = don't scroll)
+let colState=[];
+function reflow(){
+  sizeCards();
+  const cols=[...document.querySelectorAll('.col')];
+  colState=cols.map((col,ci)=>{
+    const inner=col.querySelector('.colinner');const kids=inner.children;const per=kids.length/3;
+    const old=colState[ci]||{pos:null};
+    if(!per)return {inner,pos:0,shift:0};
+    const shift=kids[per].offsetTop-kids[0].offsetTop;
+    // only scroll when the content is taller than the column
+    const run=shift>=col.clientHeight*0.9;
+    let pos=old.pos==null?ci*shift*0.27:old.pos;     // stagger columns on first start
+    if(run&&shift>0)pos=pos%shift;
+    if(!run){pos=0;inner.style.transform='none';}
+    return {inner,pos,shift:run?shift:0};
+  });
+}
+let lastT=performance.now();
+function tick(t){
+  const dt=Math.min(0.1,(t-lastT)/1000);lastT=t;
+  for(const s of colState){if(!s.shift)continue;s.pos=(s.pos+settings.speed*dt)%s.shift;
+    s.inner.style.transform=`translate3d(0,${-s.pos.toFixed(2)}px,0)`;}
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+function scheduleReflow(){clearTimeout(reflowTimer);reflowTimer=setTimeout(reflow,250);}
+
+/* ---------- branding ---------- */
+let lastBuildSig='';
+function applyBrand(){
+  const r=document.documentElement.style;
+  r.setProperty('--accent',safeColor(settings.accent,'#e1306c'));r.setProperty('--accent2',safeColor(settings.accent2,'#833ab4'));
+  r.setProperty('--bg',safeColor(settings.bg,'#120b1f'));
+  const tag=(settings.tag||'').trim()||'#yourhashtag';
+  $('tagtext').textContent=tag;$('htag').textContent=tag;
+  $('evname').textContent=settings.event||'';
+  $('hmsg').textContent=settings.hmsg||'Post on Instagram with our hashtag to appear on the wall';
+  const logo=/^data:image\//.test(settings.logo||'')?settings.logo:'';
+  [$('logo'),$('hlogo')].forEach(im=>{if(logo){im.src=logo;im.classList.add('show');}else{im.removeAttribute('src');im.classList.remove('show');}});
+  $('holding').classList.toggle('show',!!settings.holding);
+  $('blankbtn').textContent=settings.holding?'Show wall again (B)':'Blank screen (B)';
+  document.title=(settings.event?settings.event+' · ':'')+tag+' · Live Wall';
+}
+function applyAll(){
+  applyBrand();
+  // rebuild the columns only when the posts/layout actually changed (rebuilding reloads every embed)
+  const sig=JSON.stringify([visiblePosts().map(p=>p.id),settings.cols,settings.caps,effectiveCols()]);
+  if(sig!==lastBuildSig){lastBuildSig=sig;buildWall();}else{reflow();}
+}
+
+/* ---------- control panel ---------- */
+function adminOpen(){return $('admin').classList.contains('open');}
+function openAdmin(){
+  if(ADMIN_PASSCODE&&sessionStorage.getItem('igwall_admin')!=='1'){const p=prompt('Passcode');if(p!==ADMIN_PASSCODE)return;sessionStorage.setItem('igwall_admin','1');}
+  $('admin').classList.add('open');renderQueue();syncForm();updateAuthUI();
+}
+function closeAdmin(){$('admin').classList.remove('open');}
+$('gear').onclick=openAdmin;
+function setTab(t){tab=t;[['links','Links'],['custom','Custom'],['brand','Brand']].forEach(([k,n])=>{
+  $('tab'+n).classList.toggle('on',t===k);$('mode'+n).classList.toggle('hidefield',t!==k);});}
+
+function addLinks(){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const msg=$('linkmsg');const found=parseInstagram($('f_links').value);
+  if(!found.length){msg.className='msgline err';msg.textContent='No Instagram post or reel links found. Links look like instagram.com/p/… or instagram.com/reel/…';return;}
+  const have=new Set(posts.filter(p=>p.type==='ig').map(p=>p.code));
+  const fresh=found.filter(f=>!have.has(f.code));
+  fresh.forEach(f=>posts.push({id:uid(),type:'ig',kind:f.kind,code:f.code,hidden:false,added:Date.now()}));
+  msg.className='msgline ok';
+  msg.textContent=`Added ${fresh.length} post${fresh.length===1?'':'s'}`+(found.length>fresh.length?` · ${found.length-fresh.length} already on the wall`:'');
+  $('f_links').value='';renderQueue();commit();
+}
+function addCustom(){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const title=$('f_title').value.trim();if(!title){alert('Add a title first.');return;}
+  posts.push({id:uid(),type:'custom',kicker:$('f_kicker').value.trim(),title,text:$('f_text').value.trim(),img:safeUrl($('f_img').value.trim()),hidden:false});
+  ['f_kicker','f_title','f_text','f_img'].forEach(id=>$(id).value='');renderQueue();commit();
+}
+function renderQueue(){
+  const q=$('queue');$('qcount').textContent=posts.length?`(${visiblePosts().length} showing of ${posts.length})`:'';
+  $('modeinfo').textContent=(useCloud?'Live sync on':'Local mode (this browser only)')+' · wall: '+WALL_ID;
+  if(!posts.length){q.innerHTML='<div class="emptyq">No posts yet. Paste Instagram links on the left.</div>';return;}
+  q.innerHTML=posts.map((p,i)=>{
+    const ig=p.type==='ig';
+    const title=ig?(p.kind==='reel'?'Instagram reel':'Instagram post'):esc(p.title);
+    const sub=ig?`<a href="${esc(postUrl(p))}" target="_blank" rel="noopener">${esc(postUrl(p))}</a>`:esc(p.text||p.kicker||'');
+    const notLoading=ig&&!p.hidden&&!loadedCodes.has(p.code)&&Date.now()-lastBuildAt>20000;
+    const badge=(ig?'<span class="qbadge">IG</span>':'<span class="qbadge custom">CARD</span>')+(p.hidden?' <span class="qbadge hidden">HIDDEN</span>':'')
+      +(notLoading?' <span class="qbadge" style="background:#7f1d1d;color:#fecaca" title="Private, deleted, or embedding turned off. Delete or hide it.">NOT LOADING</span>':'');
+    return `<div class="qitem${p.hidden?' off':''}"><div class="qthumb">${ig?'📷':'📣'}</div>
+      <div class="qmeta"><div class="qn">${title} ${badge}</div><div class="qt">${sub}</div></div>
+      <div class="qact"><button class="iconbtn" onclick="move(${i},-1)" title="Move up">↑</button>
+      <button class="iconbtn" onclick="move(${i},1)" title="Move down">↓</button>
+      <button class="iconbtn" onclick="toggleHide('${p.id}')" title="${p.hidden?'Show':'Hide'}">${p.hidden?'👁':'🚫'}</button>
+      <button class="iconbtn" onclick="del('${p.id}')" title="Delete">🗑</button></div></div>`;}).join('');
+}
+function move(i,d){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}const j=i+d;if(j<0||j>=posts.length)return;[posts[i],posts[j]]=[posts[j],posts[i]];renderQueue();commit();}
+function toggleHide(id){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}const p=posts.find(x=>x.id===id);if(p){p.hidden=!p.hidden;renderQueue();commit();}}
+function del(id){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}if(!confirm('Delete this post from the wall?'))return;posts=posts.filter(p=>p.id!==id);renderQueue();commit();}
+function toggleHolding(){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}settings.holding=!settings.holding;commit();if(useCloud)applyBrand();}
+
+function syncForm(){
+  $('b_event').value=settings.event||'';$('b_tag').value=settings.tag||'';$('b_hmsg').value=settings.hmsg||'';
+  $('b_accent').value=safeColor(settings.accent,'#e1306c');$('b_accent2').value=safeColor(settings.accent2,'#833ab4');$('b_bg').value=safeColor(settings.bg,'#120b1f');
+  $('s_cols').value=settings.cols;$('s_speed').value=settings.speed;$('s_caps').value=settings.caps?'1':'0';
+}
+function saveBrand(){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  let tag=$('b_tag').value.trim();if(tag&&!tag.startsWith('#'))tag='#'+tag;
+  Object.assign(settings,{event:$('b_event').value.trim(),tag:tag||'#yourhashtag',hmsg:$('b_hmsg').value.trim(),
+    accent:$('b_accent').value,accent2:$('b_accent2').value,bg:$('b_bg').value,
+    cols:+$('s_cols').value||4,speed:+$('s_speed').value||30,caps:$('s_caps').value==='1'?1:0});
+  commit();
+}
+$('b_logo').addEventListener('change',e=>{if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');e.target.value='';return;}const f=e.target.files[0];if(!f)return;
+  if(f.size>500*1024){alert('Logo is over 500 KB. Export a smaller PNG or an SVG.');e.target.value='';return;}
+  const r=new FileReader();r.onload=()=>{settings.logo=String(r.result);commit();};r.readAsDataURL(f);e.target.value='';});
+function clearLogo(){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}settings.logo='';commit();}
+
+function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({posts,settings},null,2)],{type:'application/json'}));
+  a.download='instagram-wall-'+WALL_ID+'.json';a.click();URL.revokeObjectURL(a.href);}
+$('importfile').addEventListener('change',e=>{if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');e.target.value='';return;}const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(Array.isArray(d.posts))posts=d.posts.filter(p=>p&&(p.type==='custom'||(p.type==='ig'&&/^[A-Za-z0-9_-]{5,40}$/.test(p.code))));
+    if(d.settings)settings={...DEFAULT_SETTINGS,...d.settings};renderQueue();syncForm();commit();}catch(err){alert('That file could not be read as a wall export.');}};
+  r.readAsText(f);e.target.value='';});
+
+/* ---------- keys + cursor ---------- */
+document.addEventListener('keydown',e=>{
+  if(adminOpen()){if(e.key==='Escape')closeAdmin();return;}
+  const k=e.key.toLowerCase();
+  if(k==='a')openAdmin();
+  else if(k==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();}
+  // B works on any screen, even offline or signed out: it blanks THIS screen. Signed-in staff also sync it.
+  else if(k==='b'){settings.holding=!settings.holding;applyBrand();if(canEdit())save();}
+  else if(k==='r')location.reload();
+});
+let cursorTimer=null;
+document.addEventListener('mousemove',()=>{document.body.classList.remove('hidecursor');clearTimeout(cursorTimer);
+  cursorTimer=setTimeout(()=>{if(!adminOpen())document.body.classList.add('hidecursor');},3000);});
+let resizeT=null;window.addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(applyAll,250);});
+// gentle safety net: re-check scroll distances every 20 s (late-loading embeds)
+setInterval(reflow,20000);
+
+if(useCloud)initCloud();else{load();applyAll();}
+if(ADMIN_MODE)openAdmin();
+if(!navigator.onLine)setStatus('No internet — Instagram posts can’t load. Press B for the holding screen.','warn');
+</script>
+</body>
+</html>
