@@ -106,6 +106,21 @@
     set('pt',pillHalf(pl,pr,cy,rad,1)); set('pb',pillHalf(pl,pr,cy,rad,0));
     set('x',exitPath(pr,cy,0),exitPath(pr,cy,1));
   }
+  // Holding screen (B): the full artwork. A light travels along the artwork's own ribbon, from the left edge,
+  // round the avatar, under "mer", round the heart and off the right edge. Route traced from the KV (1920×1080);
+  // the light is masked to the ribbon pixels (kv-full-ribbon-mask.png) so it only lights the real ribbon.
+  const HOLD='M0.0 290.1 C4.0 290.8 16.0 292.5 24.0 294.4 C32.0 296.3 40.0 298.5 48.0 301.3 C56.0 304.1 64.0 307.5 72.0 311.4 C80.0 315.3 88.0 319.6 96.0 324.6 C104.0 329.7 112.0 335.6 120.0 341.7 C128.0 347.7 136.0 354.5 144.0 361.0 C152.0 367.6 160.0 374.5 168.0 381.2 C176.0 387.8 184.0 394.9 192.0 401.1 C200.0 407.3 208.0 413.0 216.0 418.4 C224.0 423.7 232.0 428.6 240.0 433.1 C248.0 437.7 256.0 441.8 264.0 445.6 C272.0 449.4 280.0 452.9 288.0 455.9 C296.0 458.8 304.0 461.2 312.0 463.5 C320.0 465.8 328.0 467.7 336.0 469.6 C344.0 471.5 316.0 475.2 360.0 474.9 C404.0 474.6 519.9 473.2 600.0 468.0 C680.1 462.8 791.6 454.8 840.7 443.6 C889.8 432.4 879.6 412.2 894.6 400.9 C909.6 389.7 917.4 382.6 930.9 376.0 C944.3 369.3 959.5 363.2 975.2 361.2 C990.9 359.2 1010.8 360.1 1024.8 364.1 C1038.9 368.0 1050.5 374.8 1059.3 384.8 C1068.2 394.8 1074.5 410.9 1077.8 424.2 C1081.1 437.5 1081.1 451.3 1079.3 464.6 C1077.5 477.9 1069.3 491.2 1067.1 504.0 C1064.9 516.9 1060.5 532.4 1066.0 542.0 C1071.6 551.5 1087.8 557.2 1100.2 561.1 C1112.5 565.0 1106.6 566.3 1139.9 565.4 C1173.2 564.6 1251.7 562.0 1300.0 555.9 C1348.3 549.8 1396.6 532.1 1430.0 529.0 C1463.4 525.9 1478.7 533.8 1500.4 537.1 C1522.1 540.3 1546.8 547.0 1560.1 548.4 C1573.4 549.9 1566.2 548.8 1580.3 545.5 C1594.4 542.1 1627.7 533.9 1644.8 528.3 C1661.9 522.8 1672.2 517.7 1683.0 512.2 C1693.9 506.6 1709.8 501.5 1709.8 495.0 C1709.8 488.5 1689.1 481.6 1683.0 473.3 C1676.8 465.0 1672.5 452.6 1672.9 445.1 C1673.2 437.5 1679.9 430.5 1685.0 428.1 C1690.0 425.6 1697.7 427.5 1702.9 430.4 C1708.1 433.3 1712.3 446.7 1716.3 445.6 C1720.2 444.5 1720.6 429.3 1726.6 423.9 C1732.6 418.5 1746.0 412.2 1752.5 413.2 C1759.0 414.2 1765.1 422.4 1765.6 429.8 C1766.2 437.3 1761.3 449.0 1755.9 457.7 C1750.6 466.5 1740.9 476.2 1733.5 482.4 C1726.2 488.6 1707.5 492.6 1711.9 495.0 C1716.4 497.3 1743.8 498.6 1760.3 496.5 C1776.7 494.4 1790.6 489.1 1810.6 482.4 C1830.6 475.6 1862.6 462.3 1880.3 456.2 C1897.9 450.1 1910.6 447.4 1916.7 445.6';
+  function holdingLight(base){
+    const h=document.getElementById('holding'); if(!h||h.querySelector('.cfd-hold'))return;
+    h.insertAdjacentHTML('afterbegin',`<svg class="cfd-hold" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><mask id="cfdHoldMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+        <image href="${base}kv-full-ribbon-mask.png" x="0" y="0" width="1920" height="1080"/></mask>
+        <filter id="cfdHoldSoft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
+      <g class="cfd-holdflow" mask="url(#cfdHoldMask)">
+        <path class="halo" d="${HOLD}" pathLength="1000"/>
+        <path class="core" d="${HOLD}" pathLength="1000" filter="url(#cfdHoldSoft)"/>
+      </g></svg>`);
+  }
   function puzzle(cls){return `<svg class="cfd-puzzle ${cls}" viewBox="-20 0 260 245" aria-hidden="true"><path d="${PUZZLE}"/></svg>`;}
   window.CFD={
     mount(o){
@@ -121,6 +136,7 @@
       tl.innerHTML='<i></i><span>Every decision starts with them</span><i></i>';
       o.wall.appendChild(tl);
       CFD.setTag(o.tag);
+      holdingLight(base);
       addEventListener('resize',()=>requestAnimationFrame(fitPill));
       if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>requestAnimationFrame(fitPill));
       setTimeout(fitPill,1500);
