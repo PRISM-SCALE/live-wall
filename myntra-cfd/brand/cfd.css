@@ -47,10 +47,9 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 .cfd-thread .bloom{opacity:.26}
 .cfd-thread .inner{opacity:.72}
 .cfd-thread .hot{opacity:.82}
-/* travelling light: built in cfd.js as a comet (white-hot head, tail fading into the line's colour, soft bloom).
-   Screen blending makes it add light to the line instead of sitting on top of it. */
-.cfd-comet{mix-blend-mode:screen;pointer-events:none}
-.cfd-comet path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* travelling light: a soft blurred band of light sweeping along the line (moving gradient, built in cfd.js).
+   Screen blending makes it brighten the line it passes over, like light flowing through it. */
+.cfd-sw{fill:none;stroke-linecap:round;stroke-linejoin:round;mix-blend-mode:screen;pointer-events:none}
 .cfd-pill{position:absolute;right:2.4vw;top:calc(var(--cfd-head) * .4167);transform:translateY(-50%);
   display:inline-flex;align-items:center;gap:.52vw;padding:.52vw .94vw .52vw .8vw;border-radius:999px;
   font-weight:700;font-size:max(1.56vw,12px);letter-spacing:.01em;color:#fff;
@@ -95,8 +94,8 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 }
 @media(prefers-reduced-motion:reduce){
   .cfd-sky-grad,.cfd-orb,.cfd-puzzle{animation:none!important}
-  .cfd-comet,.cfd-hold{display:none}
+  .cfd-sw,.cfd-hold{display:none}
 }
 
-/* ---------- holding screen (B): comet travelling along the artwork's ribbon (built in cfd.js) ---------- */
+/* ---------- holding screen (B): light sweeping along the artwork's ribbon (built in cfd.js) ---------- */
 .cfd-hold{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}

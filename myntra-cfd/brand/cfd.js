@@ -43,46 +43,14 @@
     return `<path class="bloom"${k} d="${a}" stroke="url(#${grad})" stroke-width="22" filter="url(#cfdBloom)">${bw}</path>
       <path class="inner"${k} d="${a}" stroke="url(#${grad})" stroke-width="7" filter="url(#cfdInner)">${bw}</path>
       <path class="cl"${k} data-side="${side}" data-grad="${grad}" d="${a}" stroke="url(#${grad})" stroke-width="2.6">${bw}</path>
-      <path class="hot"${k} d="${a}" stroke="#fff" stroke-width="1">${bw}</path>`;
+      <path class="hot"${k} d="${a}" stroke="#fff" stroke-width="1">${bw}</path>
+      ${sweep(a,bw,3,'cfdSweep').replace(/<path /g,`<path${k} `)}`;
   }
-  // Travelling light = a comet: white-hot head, a tail that fades back into the line's own colour, and a soft
-  // bloom round the head. One steady speed along the whole route; it enters and leaves at the path ends, so
-  // nothing pops in or out. Each layer is a dash whose head moves along the path (head-aligned dashes).
-  const COMET=[{L:260,w:2.2,o:.28,c:'grad'},{L:130,w:2.6,o:.5,c:'grad'},{L:56,w:3.2,o:.85,c:'#fff3d8'},
-               {L:14,w:4,o:1,c:'#ffffff',f:'head'},{L:90,w:15,o:.28,c:'#ffd9a8',f:'bloom'}];
-  let meter=null;
-  function pathLen(d){
-    if(!meter){meter=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      meter.setAttribute('style','position:absolute;width:0;height:0;visibility:hidden;pointer-events:none');
-      meter.appendChild(document.createElementNS('http://www.w3.org/2000/svg','path'));document.body.appendChild(meter);}
-    const q=meter.firstChild; q.setAttribute('d',d); return q.getTotalLength();
-  }
-  function buildComets(root,order,o){
-    if(!MOTION||!root)return;
-    root.querySelectorAll('.cfd-comet').forEach(g=>g.remove());
-    const NS='http://www.w3.org/2000/svg', sc=o.scale||1, Lmax=Math.max(...COMET.map(c=>c.L))*sc;
-    const plan=[]; let t=0;
-    order.forEach(side=>{const paths=[...root.querySelectorAll(`.cl[data-side="${side}"]`)]; if(!paths.length)return;
-      const lens=paths.map(p=>pathLen(p.getAttribute('d'))); plan.push({paths,lens,t0:t}); t+=Math.max(...lens)/o.speed;});
-    const cycle=t+Lmax/o.speed+o.rest; let css='';
-    plan.forEach((sg,si)=>sg.paths.forEach((p,pi)=>{
-      const len=sg.lens[pi], g=document.createElementNS(NS,'g'); g.setAttribute('class','cfd-comet');
-      COMET.forEach((c,li)=>{
-        const L=c.L*sc, name=`${o.prefix}${si}_${pi}_${li}`, a=sg.t0/cycle*100, b=Math.min(100,(sg.t0+(len+L)/o.speed)/cycle*100);
-        css+=`@keyframes ${name}{0%,${a.toFixed(3)}%{stroke-dashoffset:${L.toFixed(1)}}${b.toFixed(3)}%,100%{stroke-dashoffset:${(-len).toFixed(1)}}}\n`;
-        const q=p.cloneNode(true); q.removeAttribute('class'); q.removeAttribute('data-k'); q.removeAttribute('data-side');
-        q.setAttribute('stroke',c.c==='grad'?`url(#${p.dataset.grad})`:c.c); q.setAttribute('stroke-width',(c.w*sc).toFixed(2));
-        q.setAttribute('opacity',c.o); q.setAttribute('fill','none');
-        q.setAttribute('stroke-dasharray',`${L.toFixed(1)} ${(len+L+50).toFixed(1)}`); q.setAttribute('stroke-dashoffset',L.toFixed(1));
-        if(c.f)q.setAttribute('filter',`url(#${o.filters[c.f]})`); else q.removeAttribute('filter');
-        q.style.animation=`${name} ${cycle.toFixed(3)}s linear infinite`;
-        g.appendChild(q);
-      });
-      p.after(g);
-    }));
-    let st=document.getElementById(o.prefix+'style'); if(!st){st=document.createElement('style');st.id=o.prefix+'style';document.head.appendChild(st);}
-    st.textContent=css;
-  }
+  // Travelling light (after the client's reference): a soft, blurred band of light sweeps across the line,
+  // brightening it as it passes (screen blend), like light flowing through it. It is a moving gradient, so it
+  // has no hard ends, lights the heart and both edges of the pill naturally, and costs little.
+  const sweep=(d,bw,w,grad)=>`<path class="cfd-sw" d="${d}" stroke="url(#${grad})" stroke-width="${w*4.5}" filter="url(#cfdSweepBlur)">${bw}</path>
+      <path class="cfd-sw" d="${d}" stroke="url(#${grad})" stroke-width="${w}">${bw}</path>`;
   // the moving KV background; also cloned into the top/bottom edges so posts dissolve into it
   function skyHTML(){
     return '<div class="cfd-sky-grad"></div><div class="cfd-orb a"></div><div class="cfd-orb b"></div>'
@@ -105,8 +73,13 @@
             <stop offset="0" stop-color="#ff9ec8"/><stop offset="1" stop-color="#ffc14a"/></linearGradient>
           <filter id="cfdBloom" x="-5%" y="-150%" width="110%" height="400%"><feGaussianBlur stdDeviation="9"/></filter>
           <filter id="cfdInner" x="-5%" y="-100%" width="110%" height="300%"><feGaussianBlur stdDeviation="2.6"/></filter>
-          <filter id="cfdHead" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="1.3"/></filter>
-          <filter id="cfdCometBloom" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="6"/></filter>
+          <linearGradient id="cfdSweep" gradientUnits="userSpaceOnUse" x1="-760" y1="0" x2="0" y2="0">
+            <stop offset="0" stop-color="#ffb47a" stop-opacity="0"/><stop offset=".5" stop-color="#ffc98c" stop-opacity=".16"/>
+            <stop offset=".78" stop-color="#fff1d2" stop-opacity=".55"/><stop offset=".9" stop-color="#fff" stop-opacity=".95"/>
+            <stop offset=".95" stop-color="#fff4dc" stop-opacity=".5"/><stop offset="1" stop-color="#ffd9a8" stop-opacity="0"/>
+            <animateTransform attributeName="gradientTransform" type="translate" values="0 0;2760 0;2760 0" keyTimes="0;.82;1" dur="11s" repeatCount="indefinite"/>
+          </linearGradient>
+          <filter id="cfdSweepBlur" x="-5%" y="-150%" width="110%" height="400%"><feGaussianBlur stdDeviation="5"/></filter>
           <filter id="cfdLift" x="-10%" y="-20%" width="120%" height="150%">
             <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#5a0030" flood-opacity=".24"/></filter>
           <filter id="cfdLiftS" x="-10%" y="-20%" width="120%" height="150%">
@@ -124,7 +97,7 @@
         <image href="${base}myntra-logo-white.svg" x="50" y="61" width="284" height="78" filter="url(#cfdLiftS)"/>
         <image class="cfd-lockup" href="${base}kv-lockup.webp" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
         <g class="cfd-mid" mask="url(#cfdRibMask)">
-          <path class="cl" data-side="m" data-grad="cfdRibMid" d="${MID}" fill="none" stroke="none"/>
+          ${sweep(MID,'',4,'cfdSweep')}
         </g>
       </svg>
     </header>`;
@@ -143,10 +116,7 @@
     set('r',rightPath(pl,cy,0),rightPath(pl,cy,1));
     set('pt',pillHalf(pl,pr,cy,rad,1)); set('pb',pillHalf(pl,pr,cy,rad,0));
     set('x',exitPath(pr,cy,0),exitPath(pr,cy,1));
-    headerComets();
   }
-  const headerComets=()=>buildComets(document.querySelector('.cfd-headsvg'),['l','m','r','p','x'],
-    {speed:240,rest:2.2,prefix:'cfdC',filters:{head:'cfdHead',bloom:'cfdCometBloom'}});
   // Holding screen (B): the full artwork. A light travels along the artwork's own ribbon, from the left edge,
   // round the avatar, under "mer", round the heart and off the right edge. Route traced from the KV (1920×1080);
   // the light is masked to the ribbon pixels (kv-full-ribbon-mask.png) so it only lights the real ribbon.
@@ -158,10 +128,14 @@
         <image href="${base}kv-full-ribbon-mask.png" x="0" y="0" width="1920" height="1080"/></mask>
         <linearGradient id="cfdHoldGrad" gradientUnits="userSpaceOnUse" x1="0" x2="1920" y1="0" y2="0">
           <stop offset="0" stop-color="#ff86da"/><stop offset=".5" stop-color="#ffb0a0"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
-        <filter id="cfdHoldHead" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="2"/></filter>
-        <filter id="cfdHoldBloom" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="9"/></filter></defs>
-      <g mask="url(#cfdHoldMask)"><path class="cl" data-side="h" data-grad="cfdHoldGrad" d="${HOLD}" fill="none" stroke="none"/></g></svg>`);
-    buildComets(h.querySelector('.cfd-hold'),['h'],{speed:380,rest:2,scale:1.6,prefix:'cfdH',filters:{head:'cfdHoldHead',bloom:'cfdHoldBloom'}});
+        <linearGradient id="cfdHoldSweep" gradientUnits="userSpaceOnUse" x1="-900" y1="0" x2="0" y2="0">
+          <stop offset="0" stop-color="#ffb47a" stop-opacity="0"/><stop offset=".5" stop-color="#ffc98c" stop-opacity=".16"/>
+          <stop offset=".78" stop-color="#fff1d2" stop-opacity=".55"/><stop offset=".9" stop-color="#fff" stop-opacity=".95"/>
+          <stop offset=".95" stop-color="#fff4dc" stop-opacity=".5"/><stop offset="1" stop-color="#ffd9a8" stop-opacity="0"/>
+          <animateTransform attributeName="gradientTransform" type="translate" values="0 0;2900 0;2900 0" keyTimes="0;.82;1" dur="10s" repeatCount="indefinite"/>
+        </linearGradient>
+        <filter id="cfdSweepBlurH" x="-5%" y="-150%" width="110%" height="400%"><feGaussianBlur stdDeviation="8"/></filter></defs>
+      <g mask="url(#cfdHoldMask)">${sweep(HOLD,'',7,'cfdHoldSweep').replace('cfdSweepBlur','cfdSweepBlurH')}</g></svg>`);
   }
   function puzzle(cls){return `<svg class="cfd-puzzle ${cls}" viewBox="-20 0 260 245" aria-hidden="true"><path d="${PUZZLE}"/></svg>`;}
   window.CFD={
@@ -179,7 +153,6 @@
       o.wall.appendChild(tl);
       CFD.setTag(o.tag);
       holdingLight(base);
-      headerComets();
       addEventListener('resize',()=>requestAnimationFrame(fitPill));
       if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>requestAnimationFrame(fitPill));
       setTimeout(fitPill,1500);
