@@ -84,8 +84,10 @@
             <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#5a0030" flood-opacity=".24"/></filter>
           <filter id="cfdLiftS" x="-10%" y="-20%" width="120%" height="150%">
             <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#5a0030" flood-opacity=".18"/></filter>
+          <mask id="cfdRibCore" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="240">
+            <image href="${base}kv-ribbon-core.png?v=20261115d" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
           <mask id="cfdRibMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="240">
-            <image href="${base}kv-ribbon-mask.png?v=20261115c" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
+            <image href="${base}kv-ribbon-mask.png?v=20261115d" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
         </defs>
         <g class="cfd-thread">
           ${thread(LEFT_A,LEFT_B,11,'cfdRibL','l')}
@@ -95,10 +97,10 @@
           ${thread(exitPath(G.pr,G.cy,0),exitPath(G.pr,G.cy,1),9,'cfdRibR','x','x')}
         </g>
         <image href="${base}myntra-logo-white.svg" x="50" y="61" width="284" height="78" filter="url(#cfdLiftS)"/>
-        <image class="cfd-lockup" href="${base}kv-lockup.webp?v=20261115c" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
-        <g class="cfd-mid" mask="url(#cfdRibMask)">
-          ${sweep(MID,'',4,'cfdSweep')}
-        </g>
+        <image class="cfd-lockup" href="${base}kv-lockup.webp?v=20261115d" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
+        <!-- artwork ribbon (round the avatar): the passing band brightens the ribbon's own pixels, no traced route -->
+        <g class="cfd-mid" mask="url(#cfdRibCore)"><rect class="cfd-swf" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" fill="url(#cfdSweep)"/></g>
+        <g class="cfd-mid" mask="url(#cfdRibMask)" opacity=".35"><rect class="cfd-swf" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" fill="url(#cfdSweep)"/></g>
       </svg>
     </header>`;
   }
@@ -124,8 +126,10 @@
   function holdingLight(base){
     const h=document.getElementById('holding'); if(!h||h.querySelector('.cfd-hold'))return;
     h.insertAdjacentHTML('afterbegin',`<svg class="cfd-hold" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><mask id="cfdHoldMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
-        <image href="${base}kv-full-ribbon-mask.png" x="0" y="0" width="1920" height="1080"/></mask>
+      <defs><mask id="cfdHoldCore" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+        <image href="${base}kv-full-ribbon-core.png?v=20261115d" x="0" y="0" width="1920" height="1080"/></mask>
+        <mask id="cfdHoldMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+        <image href="${base}kv-full-ribbon-mask.png?v=20261115d" x="0" y="0" width="1920" height="1080"/></mask>
         <linearGradient id="cfdHoldGrad" gradientUnits="userSpaceOnUse" x1="0" x2="1920" y1="0" y2="0">
           <stop offset="0" stop-color="#ff86da"/><stop offset=".5" stop-color="#ffb0a0"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
         <linearGradient id="cfdHoldSweep" gradientUnits="userSpaceOnUse" x1="-900" y1="0" x2="0" y2="0">
@@ -135,7 +139,8 @@
           <animateTransform attributeName="gradientTransform" type="translate" values="0 0;2900 0;2900 0" keyTimes="0;.82;1" dur="10s" repeatCount="indefinite"/>
         </linearGradient>
         <filter id="cfdSweepBlurH" x="-5%" y="-150%" width="110%" height="400%"><feGaussianBlur stdDeviation="8"/></filter></defs>
-      <g mask="url(#cfdHoldMask)">${sweep(HOLD,'',7,'cfdHoldSweep').replace('cfdSweepBlur','cfdSweepBlurH')}</g></svg>`);
+      <g mask="url(#cfdHoldCore)"><rect class="cfd-swf" x="0" y="0" width="1920" height="1080" fill="url(#cfdHoldSweep)"/></g>
+      <g mask="url(#cfdHoldMask)" opacity=".35"><rect class="cfd-swf" x="0" y="0" width="1920" height="1080" fill="url(#cfdHoldSweep)"/></g></svg>`);
   }
   function puzzle(cls){return `<svg class="cfd-puzzle ${cls}" viewBox="-20 0 260 245" aria-hidden="true"><path d="${PUZZLE}"/></svg>`;}
   window.CFD={
