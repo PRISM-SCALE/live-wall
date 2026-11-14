@@ -85,7 +85,7 @@
           <filter id="cfdLiftS" x="-10%" y="-20%" width="120%" height="150%">
             <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#5a0030" flood-opacity=".18"/></filter>
           <mask id="cfdRibMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="240">
-            <image href="${base}kv-ribbon-mask.png" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
+            <image href="${base}kv-ribbon-mask.png?v=20261115c" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}"/></mask>
         </defs>
         <g class="cfd-thread">
           ${thread(LEFT_A,LEFT_B,11,'cfdRibL','l')}
@@ -95,7 +95,7 @@
           ${thread(exitPath(G.pr,G.cy,0),exitPath(G.pr,G.cy,1),9,'cfdRibR','x','x')}
         </g>
         <image href="${base}myntra-logo-white.svg" x="50" y="61" width="284" height="78" filter="url(#cfdLiftS)"/>
-        <image class="cfd-lockup" href="${base}kv-lockup.webp" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
+        <image class="cfd-lockup" href="${base}kv-lockup.webp?v=20261115c" x="${LK.x}" y="${LK.y}" width="${LK.w}" height="${LK.h}" filter="url(#cfdLift)"/>
         <g class="cfd-mid" mask="url(#cfdRibMask)">
           ${sweep(MID,'',4,'cfdSweep')}
         </g>
