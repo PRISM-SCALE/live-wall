@@ -127,6 +127,15 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 .queue{display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto;padding-right:4px}
 .qitem{display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
 .qitem.off{opacity:.45}
+.sugbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,.6);margin:2px 0 10px}
+.sugdot{width:8px;height:8px;border-radius:50%;background:#64748b;flex:0 0 auto}.sugdot.ok{background:#22c55e}.sugdot.warn{background:#f59e0b}
+.suglist{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto;padding-right:4px}
+.sug{display:flex;gap:10px;padding:9px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.sugth{width:64px;height:64px;border-radius:9px;flex:0 0 auto;object-fit:cover;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px}
+.sugm{flex:1;min-width:0}.sugcap{font-size:12.5px;line-height:1.4;color:rgba(255,255,255,.85);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sugt{font-size:11px;color:rgba(255,255,255,.45);margin-top:3px}.sugt a{color:#f9a8d4}#sugstatus{flex:1;min-width:0}.sugact{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.sugprev{margin-top:8px}.sugprev iframe{width:100%;max-width:340px;height:430px;border:0;border-radius:10px;background:#fff}
+.sugcount{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:#fff;color:#a7025f;font-size:11px;line-height:18px}
 .qthumb{width:46px;height:46px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;
   background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .qmeta{flex:1;min-width:0}
@@ -216,6 +225,7 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
       <div class="col2 left">
         <div class="seg">
           <button id="tabLinks" class="on" onclick="setTab('links')">Instagram links</button>
+          <button id="tabSuggest" onclick="setTab('suggest')">Suggestions<span class="sugcount" id="sugcount" style="display:none"></span></button>
           <button id="tabCustom" onclick="setTab('custom')">Announcement</button>
           <button id="tabBrand" onclick="setTab('brand')">Branding</button>
         </div>
@@ -226,6 +236,16 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
           <div class="help">On Instagram: open the post → ⋯ / share → <em>Copy link</em>. Only <b>public</b> posts show; private accounts and posts with embedding turned off appear blank — delete those.</div>
           <div class="formactions"><button class="btn" onclick="addLinks()">Add to wall</button></div>
           <div class="msgline" id="linkmsg"></div>
+        </div>
+
+        <div id="modeSuggest" class="hidefield">
+          <div class="sugbar"><span class="sugdot" id="sugdot"></span><span id="sugstatus">Looking for the hashtag helper…</span></div>
+          <div class="help" style="margin:0 0 10px">New public Instagram posts with the event hashtag show up here (found by the hashtag helper running on the event laptop). Nothing goes on the wall until you press <b>Add to wall</b>.</div>
+          <div class="formactions" style="margin:0 0 10px;gap:8px;display:flex;flex-wrap:wrap">
+            <button class="btn ghost sm" onclick="skipAllSuggestions()">Skip all shown</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;color:rgba(255,255,255,.7)"><input type="checkbox" id="helperhere" onchange="setHelperHere(this.checked)" style="width:auto;margin:0"> This laptop runs the hashtag helper</label>
+          </div>
+          <div class="suglist" id="suglist"></div>
         </div>
 
         <div id="modeCustom" class="hidefield">
@@ -317,7 +337,7 @@ function save(){
   store.set(KEY,JSON.stringify({posts,settings}));   // local copy always (also a cache in cloud mode)
   if(useCloud&&wallRef){
     if(!staffUser){setStatus('Not saved — sign in with Google (staff) to edit the wall','err');return;}
-    return wallRef.set({posts,settings}).then(()=>setStatus('')).catch(err=>{
+    return wallRef.update({posts,settings}).then(()=>setStatus('')).catch(err=>{
     console.error(err);setStatus(/permission/i.test(err&&err.message)?'Not saved — this Google account is not on the staff list':'Save failed — check the connection','err');});}
 }
 function commit(){save();if(!useCloud)applyAll();}
@@ -340,7 +360,8 @@ function subscribe(){
   clearTimeout(retryTimer);
   wallRef.on('value',snap=>{retryDelay=2000;setStatus('');const v=snap.val();
     if(v){posts=v.posts||[];settings={...DEFAULT_SETTINGS,...(v.settings||{})};store.set(KEY,JSON.stringify({posts,settings}));}
-    applyAll();if(adminOpen()){renderQueue();syncForm();}
+    sugCloud=(v&&v.suggest&&v.suggest.items)||{};sugMeta=(v&&v.suggest&&v.suggest.meta)||null;
+    applyAll();if(adminOpen()){renderQueue();syncForm();}renderSuggest();
   },err=>{console.error(err);setStatus('Wall offline — reconnecting…','warn');wallRef.off();
     retryTimer=setTimeout(subscribe,retryDelay);retryDelay=Math.min(retryDelay*2,60000);});
 }
@@ -490,16 +511,103 @@ function applyAll(){
   if(sig!==lastBuildSig){lastBuildSig=sig;buildWall();}else{reflow();}
 }
 
+/* ---------- hashtag suggestions ----------
+   The hashtag helper (Social-Wall/hashtag-helper, run on the event laptop with "Start Hashtag Helper")
+   finds new public posts with the wall's hashtag. The laptop's wall page reads them from the helper and,
+   when a staff member is signed in, copies them to igwalls/<wall>/suggest so phones see them too.
+   Nothing is shown on the wall until staff press "Add to wall". Only the laptop talks to the helper:
+   it is switched on with &helper=1 in the link or the "This laptop runs the hashtag helper" tick box. */
+const HELPER_URL='http://127.0.0.1:8840/suggestions';
+let sugCloud={},sugMeta=null,sugLocal=null,sugLocalAt=0,sugStates={},sugPreview=null,sugLastMeta=0;
+function helperHere(){return new URLSearchParams(location.search).get('helper')==='1'||store.get('igwall_helper_here')==='1';}
+function setHelperHere(on){store.set('igwall_helper_here',on?'1':'0');if(on)pollHelper();renderSuggest();}
+function sugItems(){
+  const m={};
+  Object.entries(sugCloud||{}).forEach(([id,s])=>{if(s&&s.c)m[id]={id,...s};});
+  ((sugLocal&&sugLocal.items)||[]).forEach(i=>{if(!m[i.id])m[i.id]={id:i.id,c:i.code,k:i.kind,ty:i.type,t:i.ts,cap:i.cap,th:i.thumb,st:'new'};});
+  Object.entries(sugStates).forEach(([id,st])=>{if(m[id])m[id].st=st;});
+  return Object.values(m).sort((a,b)=>(b.t||0)-(a.t||0));
+}
+function sugPending(){const on=new Set(posts.filter(p=>p.type==='ig').map(p=>p.code));return sugItems().filter(x=>x.st==='new'&&!on.has(x.c));}
+async function pollHelper(){
+  if(!helperHere())return;
+  try{
+    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),5000);
+    const r=await fetch(HELPER_URL,{cache:'no-store',signal:ctl.signal});clearTimeout(to);
+    const d=await r.json();sugLocal=d;sugLocalAt=Date.now();
+    if(useCloud&&staffUser&&d.ok){
+      const ups={};let n=0;
+      (d.items||[]).slice(0,80).forEach(i=>{if(!sugCloud[i.id]&&!sugStates[i.id]){ups['items/'+i.id]={c:i.code,k:i.kind,ty:i.type||'',t:i.ts||0,cap:(i.cap||'').slice(0,220),th:i.thumb||'',st:'new'};n++;}});
+      if(n||Date.now()-sugLastMeta>120000){ups.meta={tag:d.tag||'',at:Date.now(),ok:true};sugLastMeta=Date.now();}
+      if(Object.keys(ups).length)wallRef.child('suggest').update(ups).catch(e=>console.warn('suggest sync',e));
+    }
+  }catch(e){sugLocal=null;}
+  renderSuggest();
+}
+setInterval(pollHelper,30000);setTimeout(pollHelper,2500);
+function setSugState(it,st){
+  sugStates[it.id]=st;
+  if(useCloud&&staffUser){
+    const ref=wallRef.child('suggest/items/'+it.id);
+    (sugCloud[it.id]?ref.child('st').set(st):ref.set({c:it.c,k:it.k,ty:it.ty||'',t:it.t||0,cap:it.cap||'',th:it.th||'',st})).catch(e=>console.warn('suggest state',e));
+  }
+}
+function addSuggestion(id){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const it=sugItems().find(x=>x.id===id);if(!it)return;
+  if(!posts.some(p=>p.type==='ig'&&p.code===it.c))posts.push({id:uid(),type:'ig',kind:it.k==='reel'?'reel':(it.k==='tv'?'tv':'p'),code:it.c,hidden:false,added:Date.now(),src:'hashtag'});
+  // save the post FIRST: marking the suggestion triggers a fresh read of the wall, which must already include it
+  renderQueue();commit();setSugState(it,'added');if(sugPreview===id)sugPreview=null;renderSuggest();
+}
+function skipSuggestion(id){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const it=sugItems().find(x=>x.id===id);if(!it)return;setSugState(it,'skip');if(sugPreview===id)sugPreview=null;renderSuggest();
+}
+function skipAllSuggestions(){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const list=sugPending();if(!list.length)return;if(!confirm(`Skip all ${list.length} suggestions shown?`))return;
+  list.forEach(it=>setSugState(it,'skip'));sugPreview=null;renderSuggest();
+}
+function previewSuggestion(id){sugPreview=sugPreview===id?null:id;renderSuggest();}
+function agoText(ms){const s=Math.max(0,Math.round((Date.now()-ms)/1000));return s<60?s+' s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago';}
+function renderSuggest(){
+  const pend=sugPending(),cnt=$('sugcount');
+  if(cnt){cnt.style.display=pend.length?'inline-block':'none';cnt.textContent=pend.length>99?'99+':pend.length;}
+  if(!adminOpen()||tab!=='suggest')return;
+  const hb=$('helperhere');if(hb)hb.checked=helperHere();
+  let dot='',msg='';
+  if(sugLocal&&Date.now()-sugLocalAt<90000){dot=sugLocal.ok?'ok':'warn';msg=sugLocal.ok?`Hashtag helper connected on this laptop · watching #${esc(sugLocal.tag)} · checked ${agoText(sugLocal.updated)}`:`Hashtag helper problem: ${esc(sugLocal.error)}`;
+    if(sugLocal.ok&&useCloud&&!staffUser)msg+=' · sign in (top right) so phones see these too';}
+  else if(sugMeta&&sugMeta.at){const fresh=Date.now()-sugMeta.at<300000;dot=fresh?'ok':'warn';msg=`From the event laptop · #${esc(sugMeta.tag||'')} · last update ${agoText(sugMeta.at)}`+(fresh?'':' · is the helper still running?');}
+  else{msg=helperHere()?'No hashtag helper found on this laptop. Double-click “Start Hashtag Helper” in the Social-Wall folder.':'No suggestions yet. They appear when the event laptop runs the hashtag helper.';}
+  $('sugdot').className='sugdot '+dot;$('sugstatus').innerHTML=msg;
+  const L=$('suglist');
+  if(!pend.length){L.innerHTML='<div class="emptyq">No new posts to review right now.</div>';return;}
+  L.innerHTML=pend.slice(0,60).map(x=>{
+    const th=x.th&&safeUrl(x.th)?`<img class="sugth" src="${esc(x.th)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<div class="sugth">${x.k==='reel'||x.ty==='VIDEO'?'🎬':'📷'}</div>`;
+    const when=x.t?new Date(x.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
+    const url=postUrl({kind:x.k,code:x.c});
+    const prev=sugPreview===x.id?`<div class="sugprev"><iframe src="https://www.instagram.com/${x.k==='reel'?'reel':'p'}/${esc(x.c)}/embed/" loading="lazy" scrolling="no"></iframe></div>`:'';
+    return `<div class="sug">${th}<div class="sugm"><div class="sugcap">${esc(x.cap||'(no caption)')}</div>
+      <div class="sugt">${x.k==='reel'?'Reel':'Post'} · ${when} · <a href="${esc(url)}" target="_blank" rel="noopener">open on Instagram</a></div>
+      <div class="sugact"><button class="btn sm" onclick="addSuggestion('${esc(x.id)}')">Add to wall</button>
+      <button class="btn ghost sm" onclick="previewSuggestion('${esc(x.id)}')">${sugPreview===x.id?'Hide preview':'Preview'}</button>
+      <button class="btn ghost sm" onclick="skipSuggestion('${esc(x.id)}')">Skip</button></div>${prev}</div></div>`;}).join('')
+    +(pend.length>60?`<div class="help">Showing the newest 60 of ${pend.length}.</div>`:'');
+}
+setInterval(()=>{if(adminOpen()&&tab==='suggest'&&!sugPreview)renderSuggest();},15000);
+
 /* ---------- control panel ---------- */
 function adminOpen(){return $('admin').classList.contains('open');}
 function openAdmin(){
   if(ADMIN_PASSCODE&&sessionStorage.getItem('igwall_admin')!=='1'){const p=prompt('Passcode');if(p!==ADMIN_PASSCODE)return;sessionStorage.setItem('igwall_admin','1');}
-  $('admin').classList.add('open');renderQueue();syncForm();updateAuthUI();
+  $('admin').classList.add('open');renderQueue();syncForm();updateAuthUI();renderSuggest();
 }
 function closeAdmin(){$('admin').classList.remove('open');}
 $('gear').onclick=openAdmin;
-function setTab(t){tab=t;[['links','Links'],['custom','Custom'],['brand','Brand']].forEach(([k,n])=>{
-  $('tab'+n).classList.toggle('on',t===k);$('mode'+n).classList.toggle('hidefield',t!==k);});}
+function setTab(t){tab=t;[['links','Links'],['suggest','Suggest'],['custom','Custom'],['brand','Brand']].forEach(([k,n])=>{
+  $('tab'+n).classList.toggle('on',t===k);$('mode'+n).classList.toggle('hidefield',t!==k);});
+  if(t==='suggest')renderSuggest();}
 
 function addLinks(){
   if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
