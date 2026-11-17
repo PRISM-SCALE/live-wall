@@ -242,6 +242,7 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
           <div class="sugbar"><span class="sugdot" id="sugdot"></span><span id="sugstatus">Checking Instagram…</span></div>
           <div class="help" style="margin:0 0 10px">New public Instagram posts with the event hashtag (Branding → Hashtag, plus any extra hashtags) show up here within about a minute, on any device. Nothing goes on the wall until you press <b>Add to wall</b>.</div>
           <div class="formactions" style="margin:0 0 10px;gap:8px;display:flex;flex-wrap:wrap">
+            <button class="btn sm" onclick="addAllSuggestions()">Add all to wall</button>
             <button class="btn ghost sm" onclick="skipAllSuggestions()">Skip all shown</button>
           </div>
           <div class="suglist" id="suglist"></div>
@@ -445,7 +446,9 @@ function buildWall(){
   $('emptywall').classList.toggle('show',!list.length);
   colState=[];
   if(!list.length){grid.innerHTML='';colOriginals=[];return;}
-  const cols=Array.from({length:N},()=>[]);list.forEach((p,i)=>cols[i%N].push(p));
+  // Fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full.
+  const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
+  if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
   colOriginals=cols.map(c=>c.map(cardHTML).join(''));
   lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
   // render 3 stacked copies per column once; reflow only changes sizes and the scroll distance
@@ -521,11 +524,21 @@ function applyAll(){
 const SUGGEST_URL='https://live-wall-hashtags.designcore777.workers.dev/suggest?wall='+encodeURIComponent(WALL_ID);
 const HELPER_URL='http://127.0.0.1:8840/suggestions';
 let sugCloud={},sugMeta=null,sugLocal=null,sugLocalAt=0,sugStates={},sugPreview=null,sugBusy=false;
+// Every post this device has seen in the last 26 hours, so a busy hashtag never pushes unreviewed posts off the list.
+const SEEN_KEY='igwall_seen_v1_'+WALL_ID;
+let sugSeen={};try{sugSeen=JSON.parse(store.get(SEEN_KEY)||'{}')||{};}catch(e){sugSeen={};}
+function rememberSeen(items){
+  const cut=Date.now()-26*3600e3;let changed=false;
+  (items||[]).forEach(i=>{if(i&&i.id&&!sugSeen[i.id]){sugSeen[i.id]=i;changed=true;}});
+  Object.keys(sugSeen).forEach(id=>{if((sugSeen[id].ts||0)<cut){delete sugSeen[id];changed=true;}});
+  if(changed){try{store.set(SEEN_KEY,JSON.stringify(sugSeen));}catch(e){}}
+}
 function helperHere(){return new URLSearchParams(location.search).get('helper')==='1';}
 function sugItems(){
   const m={};
   Object.entries(sugCloud||{}).forEach(([id,s])=>{if(s&&s.c)m[id]={id,...s};});
-  ((sugLocal&&sugLocal.items)||[]).forEach(i=>{if(!m[i.id])m[i.id]={id:i.id,c:i.code,k:i.kind,ty:i.type,t:i.ts,cap:i.cap,th:i.thumb,tg:i.tag||'',st:'new'};else if(!m[i.id].tg&&i.tag)m[i.id].tg=i.tag;});
+  const tagsNow=(sugLocal&&sugLocal.tags)||null;
+  Object.values(sugSeen).filter(i=>!tagsNow||!i.tag||tagsNow.includes(i.tag)).forEach(i=>{if(!m[i.id])m[i.id]={id:i.id,c:i.code,k:i.kind,ty:i.type,t:i.ts,cap:i.cap,th:i.thumb,tg:i.tag||'',st:'new'};else if(!m[i.id].tg&&i.tag)m[i.id].tg=i.tag;});
   Object.entries(sugStates).forEach(([id,st])=>{if(m[id])m[id].st=st;});
   return Object.values(m).sort((a,b)=>(b.t||0)-(a.t||0));
 }
@@ -536,7 +549,7 @@ async function pollHelper(force){
   try{
     const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
     const r=await fetch(helperHere()?HELPER_URL:SUGGEST_URL,{cache:'no-store',signal:ctl.signal});clearTimeout(to);
-    const d=await r.json();sugLocal=d;sugLocalAt=Date.now();
+    const d=await r.json();sugLocal=d;sugLocalAt=Date.now();if(d&&d.ok)rememberSeen(d.items);
   }catch(e){sugLocal={ok:false,error:'Can’t reach the hashtag service right now (check the internet).',items:(sugLocal&&sugLocal.items)||[],updated:Date.now()};sugLocalAt=Date.now();}
   sugBusy=false;renderSuggest();
 }
@@ -558,6 +571,14 @@ function addSuggestion(id){
 function skipSuggestion(id){
   if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
   const it=sugItems().find(x=>x.id===id);if(!it)return;setSugState(it,'skip');if(sugPreview===id)sugPreview=null;renderSuggest();
+}
+function addAllSuggestions(){
+  if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
+  const list=sugPending().slice().reverse();if(!list.length)return;   // oldest first, so the newest end up last
+  if(!confirm(`Add all ${list.length} new posts to the wall?`))return;
+  const have=new Set(posts.filter(p=>p.type==='ig').map(p=>p.code));
+  list.forEach(it=>{if(!have.has(it.c)){have.add(it.c);posts.push({id:uid(),type:'ig',kind:it.k==='reel'?'reel':(it.k==='tv'?'tv':'p'),code:it.c,hidden:false,added:Date.now(),src:'hashtag'});}});
+  renderQueue();commit();list.forEach(it=>setSugState(it,'added'));sugPreview=null;renderSuggest();
 }
 function skipAllSuggestions(){
   if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
@@ -589,7 +610,7 @@ function renderSuggest(){
       <div class="sugact"><button class="btn sm" onclick="addSuggestion('${esc(x.id)}')">Add to wall</button>
       <button class="btn ghost sm" onclick="previewSuggestion('${esc(x.id)}')">${sugPreview===x.id?'Hide preview':'Preview'}</button>
       <button class="btn ghost sm" onclick="skipSuggestion('${esc(x.id)}')">Skip</button></div>${prev}</div></div>`;}).join('')
-    +(pend.length>60?`<div class="help">Showing the newest 60 of ${pend.length}.</div>`:'');
+    +(pend.length>60?`<div class="help">Showing the newest 60 of ${pend.length}. Add or skip some to see the rest (Add all adds every one).</div>`:'');
 }
 setInterval(()=>{if(adminOpen()&&tab==='suggest'&&!sugPreview)renderSuggest();},15000);
 
