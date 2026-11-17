@@ -404,10 +404,10 @@ function subscribe(){
   wallRef.on('value',snap=>{
     retryDelay=2000; gotData=true; setStatus('');       // healthy again
     const v=snap.val();
-    if(!v){ posts=[]; buildWall(); return; }   // empty wall: never write demo posts to the live DB
+    if(!v){ posts=[]; applyWall(); return; }   // empty wall: never write demo posts to the live DB
     posts=v.posts||[];
     settings={cols:4,speed:30,tag:DEFAULT_TAG,...(v.settings||{})};if(window.CFD)CFD.setTag(settings.tag||DEFAULT_TAG);
-    buildWall();
+    applyWall();
     if(adminOpen()){renderQueue();syncSettings();}
   },err=>{
     // Firebase CANCELS a listener on error and never retries by itself.
@@ -522,7 +522,7 @@ function cardHTML(p){
     const w=p.w||EMBED_W,h=p.h||Math.round(EMBED_W*1.55);
     return `<div class="card embed" data-embed="1" data-w="${w}" data-h="${h}">
       <div class="scaler"><iframe src="${esc(p.embed)}" width="${w}" height="${h}"
-        frameborder="0" allowfullscreen loading="lazy" title="LinkedIn post"></iframe></div></div>`;
+        frameborder="0" allowfullscreen loading="eager" title="LinkedIn post"></iframe></div></div>`;
   }
   const av=p.avatar?`<div class="avatar"><img src="${esc(p.avatar)}" alt=""></div>`:`<div class="avatar">${initials(p.name)}</div>`;
   const media=p.img?`<div class="cmedia"><img src="${esc(p.img)}" alt=""></div>`:'';
@@ -533,24 +533,48 @@ function cardHTML(p){
     <div class="cfoot"><span>👍 ❤️ 💡</span><span class="hash">${esc(settings.tag||DEFAULT_TAG)}</span></div></div>`;
 }
 
-/* ---- build masonry, distribute round-robin, duplicate & animate ---- */
-const grid=document.getElementById('grid');
-let resizeRAF=null, colOriginals=[];
+/* ---- wall: round-robin columns, seamless JS scroll, and live add/remove without reloading other posts ----
+   Each column holds 3 identical copies of its posts and scrolls by one copy's height, then wraps.
+   Adding a post slots it in at an off-screen moment (or expands it in gently within 10 s); deleting one fades
+   it out at once. Posts already on screen are never reloaded. A full rebuild (layout change, or fewer posts
+   than columns) is built invisibly and cross-faded in. */
+let resizeRAF=null, colOriginals=[], colState=[], fadeState=[];
+let wallSig='', wallLayout='', placed=new Set(), fillMode=false, liveOps=[], gridBuilding=null, gridPending=false;
+const $g=()=>document.getElementById('grid');
+function layoutKey(){return JSON.stringify([settings.cols,effectiveCols(),settings.tag||DEFAULT_TAG]);}
+function cardFor(p){return cardHTML(p).replace('<div class="card ',`<div data-pid="${esc(p.id)}" class="card `);}
 function buildWall(){
-  if(ADMIN_MODE){grid.innerHTML='';colOriginals=[];return;}
+  const g=$g();
+  if(ADMIN_MODE){g.innerHTML='';colOriginals=[];colState=[];return;}
   const empty=document.getElementById('emptywall');
   const N=effectiveCols();
   document.documentElement.style.setProperty('--cols',N);
-  if(!posts.length){empty.classList.add('show');grid.innerHTML='';colOriginals=[];return;}
+  if(!posts.length){empty.classList.add('show');g.innerHTML='';colOriginals=[];colState=[];placed=new Set();return;}
   empty.classList.remove('show');
-  const cols=Array.from({length:N},()=>[]);
-  posts.forEach((p,i)=>cols[i%N].push(p));
-  colOriginals=cols.map(list=>list.map(cardHTML).join(''));
-  grid.innerHTML=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner}</div></div>`).join('');
-  // wait two frames for layout, then size embeds + set up seamless scroll
-  requestAnimationFrame(()=>requestAnimationFrame(setupScroll));
+  if(gridBuilding){gridPending=true;return;}
+  // fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full
+  const cols=posts.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>posts.map((_,k)=>posts[(k+j)%posts.length]));
+  if(posts.length>=N)posts.forEach((p,i)=>cols[i%N].push(p));
+  wallLayout=layoutKey();placed=new Set(posts.map(p=>p.id));fillMode=posts.length<N;liveOps=[];
+  colOriginals=cols.map(list=>list.map(cardFor).join(''));
+  const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner+inner}</div></div>`).join('');
+  if(!g.querySelector('.card')){g.innerHTML=html;colState=[];requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
+  const next=document.createElement('div');next.className='grid';
+  next.style.cssText='opacity:0;pointer-events:none;transition:opacity .9s ease';
+  next.innerHTML=html;g.parentNode.insertBefore(next,g.nextSibling);
+  gridBuilding=next;sizeEmbeds();
+  const frames=[...next.querySelectorAll('iframe')];let left=frames.length,done=false;
+  const ready=()=>{if(done)return;done=true;setTimeout(()=>swapGrid(g,next),1500);};
+  frames.forEach(f=>f.addEventListener('load',()=>{if(--left<=0)ready();},{once:true}));
+  if(!left)ready();
+  setTimeout(ready,30000);
 }
-
+function swapGrid(old,next){
+  fadeState=colState;old.removeAttribute('id');next.id='grid';old.style.transition='opacity .9s ease';
+  reflow();
+  requestAnimationFrame(()=>{next.style.opacity='1';next.style.pointerEvents='';old.style.opacity='0';});
+  setTimeout(()=>{old.remove();fadeState=[];gridBuilding=null;if(gridPending){gridPending=false;wallSig='';applyWall();}},1000);
+}
 function sizeEmbeds(){
   document.querySelectorAll('.col').forEach(col=>{
     const cw=col.clientWidth;
@@ -559,36 +583,101 @@ function sizeEmbeds(){
       const scale=Math.min(1, cw/w);          // never blow the post up past native size
       card.querySelector('.scaler').style.transform=`scale(${scale})`;
       card.style.width=Math.round(w*scale)+'px';
-      card.style.height=Math.round(h*scale)+'px';
-      card.style.alignSelf='center';          // centre in a wider column
+      if(!card.dataset.anim)card.style.height=Math.round(h*scale)+'px';
+      card.style.alignSelf='center';
     });
   });
 }
-
-// idempotent: always rebuilds each column from its stored original before cloning
-function setupScroll(){
-  const cols=[...document.querySelectorAll('.col')];
-  cols.forEach((col,ci)=>{col.querySelector('.colinner').innerHTML=colOriginals[ci]||'';});
+function reflow(){
   sizeEmbeds();
-  cols.forEach((col,ci)=>{
-    const inner=col.querySelector('.colinner');
-    inner.classList.remove('run'); inner.style.animation='none';
-    const colH=col.clientHeight;
-    const oneSet=inner.scrollHeight;            // height of one full set (sized)
-    if(oneSet<4) return;
-    const gapPx=parseFloat(getComputedStyle(inner).rowGap)||0;
-    const copies=Math.max(2, Math.ceil((colH*2)/oneSet)+1);
-    inner.innerHTML=(colOriginals[ci]||'').repeat(copies);   // stacked identical sets
-    const shift=oneSet+gapPx;                   // pitch to the next identical set
-    inner.style.setProperty('--shift',shift+'px');
-    const dur=(shift/settings.speed).toFixed(2);
-    inner.style.animation=`scrollUp ${dur}s linear ${(-ci*1.7).toFixed(1)}s infinite`;
-    inner.classList.add('run');
+  const cols=[...$g().querySelectorAll('.col')];
+  colState=cols.map((col,ci)=>{
+    const inner=col.querySelector('.colinner');const kids=[...inner.children].filter(el=>!el.dataset.leaving);const per=kids.length/3;
+    const old=colState[ci]||{pos:null};
+    inner.classList.remove('run');inner.style.animation='none';
+    if(!per)return {inner,pos:0,shift:0};
+    if(per%1)return old.inner?old:{inner,pos:0,shift:0};          // a card is mid-animation: keep the current state
+    const shift=kids[per].offsetTop-kids[0].offsetTop;
+    const run=shift>=col.clientHeight*0.9;
+    let pos=old.pos==null?ci*shift*0.27:old.pos;
+    if(run&&shift>0)pos=pos%shift;
+    if(!run){pos=0;inner.style.transform='none';}
+    return {inner,pos,shift:run?shift:0};
   });
-  requestAnimationFrame(sizeEmbeds);            // size embeds inside the cloned sets
 }
+let lastT=performance.now();
+function tick(t){
+  const dt=Math.min(0.1,(t-lastT)/1000);lastT=t;
+  for(const st of colState.concat(fadeState)){if(!st.shift)continue;st.pos=(st.pos+(settings.speed||30)*dt)%st.shift;
+    st.inner.style.transform=`translate3d(0,${-st.pos.toFixed(2)}px,0)`;}
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+function applyWall(){
+  const N=effectiveCols(),layout=layoutKey(),sig=JSON.stringify([posts.map(p=>p.id),layout]);
+  if(sig===wallSig){reflow();return;}
+  wallSig=sig;
+  const canLive=!ADMIN_MODE&&!gridBuilding&&layout===wallLayout&&!fillMode&&posts.length>=N&&!!$g().querySelector('.card');
+  if(!canLive){buildWall();return;}
+  const want=new Set(posts.map(p=>p.id));
+  posts.forEach(p=>{if(!placed.has(p.id)){placed.add(p.id);liveOps.push({type:'add',post:p});}});
+  [...placed].forEach(id=>{if(want.has(id))return;placed.delete(id);
+    const i=liveOps.findIndex(o=>o.type==='add'&&o.post.id===id);
+    if(i>=0)liveOps.splice(i,1);else liveOps.push({type:'rem',id});});
+  reflow();
+}
+function animateIn(els){
+  els.forEach(el=>{const h=el.offsetHeight;el.dataset.anim='1';el.style.overflow='hidden';el.style.opacity='0';el.style.height='0px';
+    requestAnimationFrame(()=>{el.style.transition='height .5s ease, opacity .6s ease .2s';el.style.height=h+'px';el.style.opacity='1';});
+    setTimeout(()=>{el.style.transition='';delete el.dataset.anim;},900);});
+}
+function liveInsert(col,ci,p,since){
+  const inner=col.querySelector('.colinner'),kids=[...inner.children].filter(el=>!el.dataset.leaving),per=kids.length/3,st=colState[ci]||{pos:0,shift:0};
+  if(per%1)return false;                                          // a card is still fading out: try again shortly
+  const seamOnScreen=st.shift&&st.pos+col.clientHeight>st.shift-8;
+  if(seamOnScreen&&Date.now()-since<10000)return false;
+  const html=cardFor(p);
+  if(!per)inner.insertAdjacentHTML('beforeend',html+html+html);
+  else{const refs=[3,2,1].map(k=>kids[k*per-1]);if(refs.some(r=>!r))return false;refs.forEach(r=>r.insertAdjacentHTML('afterend',html));}
+  sizeEmbeds();
+  if(seamOnScreen)animateIn([...inner.querySelectorAll(`[data-pid="${CSS.escape(p.id)}"]`)]);
+  reflow();setTimeout(reflow,950);return true;
+}
+function liveRemove(cols,id){
+  for(let ci=0;ci<cols.length;ci++){
+    const inner=cols[ci].querySelector('.colinner'),kids=[...inner.children],els=kids.filter(el=>el.dataset.pid===id);
+    if(!els.length)continue;
+    const st=colState[ci]||{pos:0,shift:0},H=cols[ci].clientHeight,base=kids[0].offsetTop;
+    const gap=parseFloat(getComputedStyle(inner).rowGap)||0;let dy=0;const visible=[];
+    els.forEach(el=>{const t=el.offsetTop-base,h=el.offsetHeight;
+      if(st.shift&&t<st.pos+H&&t+h>st.pos)visible.push(el);
+      else{if(st.shift&&t+h<=st.pos)dy+=h+gap;el.remove();}});
+    if(st.shift)st.pos=Math.max(0,st.pos-dy);
+    visible.forEach(el=>{el.dataset.leaving='1';el.dataset.anim='1';el.style.transition='opacity .4s ease';el.style.opacity='0';
+      setTimeout(()=>{el.style.height=el.offsetHeight+'px';el.style.overflow='hidden';
+        requestAnimationFrame(()=>{el.style.transition='height .45s ease, margin .45s ease';el.style.height='0px';el.style.marginBottom=(-gap)+'px';});
+        setTimeout(()=>{el.remove();reflow();},480);},420);});
+    reflow();
+  }
+  return true;
+}
+function processLiveOps(){
+  if(!liveOps.length||gridBuilding||ADMIN_MODE)return;
+  const cols=[...$g().querySelectorAll('.col')];if(!cols.length)return;
+  for(let i=0;i<liveOps.length;i++){
+    const op=liveOps[i];let ok=false;
+    if(op.type==='add'){
+      if(op.col==null||op.col>=cols.length){let best=0,bh=Infinity;
+        cols.forEach((c,ci)=>{const st=colState[ci];const h=st&&st.shift?st.shift:c.querySelector('.colinner').scrollHeight/3;if(h<bh){bh=h;best=ci;}});op.col=best;}
+      ok=liveInsert(cols[op.col],op.col,op.post,op.since||(op.since=Date.now()));
+    }else ok=liveRemove(cols,op.id);
+    if(ok){liveOps.splice(i,1);i--;}
+  }
+}
+setInterval(processLiveOps,250);
+setInterval(()=>{if(!liveOps.length&&!gridBuilding)reflow();},20000);   // late-loading embeds: re-measure
 
-function rebuild(){ buildWall(); }
+function rebuild(){ applyWall(); }
 
 /* columns for THIS device's screen — phones/tablets cap locally so a
    viewer's narrow layout never gets pushed to the shared big screen */
@@ -676,7 +765,7 @@ window.addEventListener('resize',()=>{clearTimeout(resizeRAF);resizeRAF=setTimeo
 
 if(window.CFD)CFD.mount({kind:'linkedin',tag:DEFAULT_TAG,wall:document.getElementById('wall')});
 if(useCloud){ initCloud(); }
-else{ load(); buildWall(); }
+else{ load(); applyWall(); }
 if(ADMIN_MODE) openAdmin();
 </script>
 </body>
