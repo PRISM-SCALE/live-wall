@@ -425,11 +425,11 @@ window.addEventListener('message',e=>{
 function cardHTML(p){
   if(p.type==='ig'){
     const h=heights[hkey(p.code)]||estHeight(IG_W);
-    return `<div class="card ig"><div class="scaler"><iframe data-code="${esc(p.code)}" src="${esc(embedUrl(p))}"
+    return `<div class="card ig" data-pid="${esc(p.id)}"><div class="scaler"><iframe data-code="${esc(p.code)}" src="${esc(embedUrl(p))}"
       style="width:${IG_W}px;height:${h}px" scrolling="no" allowtransparency="true" loading="eager" title="Instagram post"></iframe></div></div>`;
   }
   const img=safeUrl(p.img);
-  return `<div class="card custom">${p.kicker?`<div class="kicker">${esc(p.kicker)}</div>`:''}
+  return `<div class="card custom" data-pid="${esc(p.id)}">${p.kicker?`<div class="kicker">${esc(p.kicker)}</div>`:''}
     <div class="title">${esc(p.title)}</div>${p.text?`<div class="text">${esc(p.text)}</div>`:''}
     ${img?`<img src="${esc(img)}" alt="">`:''}</div>`;
 }
@@ -450,6 +450,7 @@ function buildWall(){
   const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
   if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
   if(gridBuilding){gridPending=true;return;}   // a new wall is already loading: rebuild again once it's shown
+  wallLayout=JSON.stringify([settings.cols,settings.caps,N]);placed=new Set(list.map(p=>p.id));fillMode=list.length<N;liveOps=[];
   colOriginals=cols.map(c=>c.map(cardHTML).join(''));
   lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
   // 3 stacked copies per column (seamless loop); reflow only changes sizes and the scroll distance
@@ -534,10 +535,76 @@ function applyBrand(){
 }
 function applyAll(){
   applyBrand();
-  // rebuild the columns only when the posts/layout actually changed (rebuilding reloads every embed)
-  const sig=JSON.stringify([visiblePosts().map(p=>p.id),settings.cols,settings.caps,effectiveCols()]);
-  if(sig!==lastBuildSig){lastBuildSig=sig;buildWall();}else{reflow();}
+  const list=visiblePosts(),N=effectiveCols(),layout=JSON.stringify([settings.cols,settings.caps,N]);
+  const sig=JSON.stringify([list.map(p=>p.id),layout]);
+  if(sig===lastBuildSig){reflow();return;}
+  lastBuildSig=sig;
+  // Posts added or hidden while the wall is running: change just those cards, never reload the others.
+  // (A full rebuild only happens for layout changes, or while there are fewer posts than columns.)
+  const canLive=!ADMIN_MODE&&!gridBuilding&&layout===wallLayout&&!fillMode&&list.length>=N&&!!$('grid').querySelector('.card');
+  if(!canLive){buildWall();return;}
+  const want=new Set(list.map(p=>p.id));
+  list.forEach(p=>{if(!placed.has(p.id)){placed.add(p.id);liveOps.push({type:'add',post:p});}});
+  [...placed].forEach(id=>{if(want.has(id))return;placed.delete(id);
+    const i=liveOps.findIndex(o=>o.type==='add'&&o.post.id===id);
+    if(i>=0)liveOps.splice(i,1);else liveOps.push({type:'rem',id});});
+  reflow();
 }
+/* ---------- live add / remove of single posts ----------
+   A new card is slotted in at the end of a column's loop only while that spot is off-screen, and a hidden card
+   is taken out only while none of its copies is on screen, so nothing visible jumps or reloads. */
+let wallLayout='',placed=new Set(),fillMode=false,liveOps=[];
+function animateIn(els){
+  els.forEach(el=>{const h=el.offsetHeight;el.style.overflow='hidden';el.style.opacity='0';el.style.height='0px';
+    requestAnimationFrame(()=>{el.style.transition='height .5s ease, opacity .6s ease .2s';el.style.height=h+'px';el.style.opacity='1';});
+    setTimeout(()=>{el.style.transition='';el.style.overflow='';},900);});
+}
+function liveInsert(col,ci,p,since){
+  const inner=col.querySelector('.colinner'),kids=inner.children,per=kids.length/3,s=colState[ci]||{pos:0,shift:0};
+  const seamOnScreen=s.shift&&s.pos+col.clientHeight>s.shift-8;
+  if(seamOnScreen&&Date.now()-since<10000)return false;          // wait (max 10 s) for the loop's seam to be off-screen
+  const html=cardHTML(p);
+  if(!per)inner.insertAdjacentHTML('beforeend',html+html+html);
+  else for(let k=3;k>=1;k--)kids[k*per-1].insertAdjacentHTML('afterend',html);
+  sizeCards();
+  const mine=[...inner.querySelectorAll(`[data-pid="${CSS.escape(p.id)}"]`)];
+  if(seamOnScreen)animateIn(mine);                                // on screen: expand in gently instead of popping
+  reflow();setTimeout(reflow,950);return true;
+}
+function liveRemove(cols,id){
+  // Hidden posts leave at once: copies off-screen are removed instantly (keeping the view still);
+  // a copy on screen fades out, then its space closes smoothly.
+  for(let ci=0;ci<cols.length;ci++){
+    const inner=cols[ci].querySelector('.colinner'),kids=[...inner.children],els=kids.filter(el=>el.dataset.pid===id);
+    if(!els.length)continue;
+    const s=colState[ci]||{pos:0,shift:0},H=cols[ci].clientHeight,base=kids[0].offsetTop;
+    const gap=parseFloat(getComputedStyle(inner).rowGap)||0;let dy=0;const visible=[];
+    els.forEach(el=>{const t=el.offsetTop-base,h=el.offsetHeight;
+      if(s.shift&&t<s.pos+H&&t+h>s.pos)visible.push(el);
+      else{if(s.shift&&t+h<=s.pos)dy+=h+gap;el.remove();}});
+    if(s.shift)s.pos=Math.max(0,s.pos-dy);
+    visible.forEach(el=>{el.style.transition='opacity .4s ease';el.style.opacity='0';
+      setTimeout(()=>{el.style.height=el.offsetHeight+'px';el.style.overflow='hidden';
+        requestAnimationFrame(()=>{el.style.transition='height .45s ease, margin .45s ease';el.style.height='0px';el.style.marginBottom=(-gap)+'px';});
+        setTimeout(()=>{el.remove();reflow();},480);},420);});
+    reflow();
+  }
+  return true;
+}
+function processLiveOps(){
+  if(!liveOps.length||gridBuilding||ADMIN_MODE)return;
+  const cols=[...$('grid').querySelectorAll('.col')];if(!cols.length)return;
+  for(let i=0;i<liveOps.length;i++){
+    const op=liveOps[i];let ok=false;
+    if(op.type==='add'){
+      if(op.col==null||op.col>=cols.length){let best=0,bh=Infinity;
+        cols.forEach((c,ci)=>{const st=colState[ci];const h=st&&st.shift?st.shift:c.querySelector('.colinner').scrollHeight/3;if(h<bh){bh=h;best=ci;}});op.col=best;}
+      ok=liveInsert(cols[op.col],op.col,op.post,op.since||(op.since=Date.now()));
+    }else ok=liveRemove(cols,op.id);
+    if(ok){liveOps.splice(i,1);i--;}
+  }
+}
+setInterval(processLiveOps,250);
 
 /* ---------- hashtag suggestions ----------
    The online hashtag service (Social-Wall/hashtag-worker, a Cloudflare Worker that holds the Instagram key)
