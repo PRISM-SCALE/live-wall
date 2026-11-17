@@ -58,6 +58,7 @@ body.hidecursor{cursor:none}
    Chromium doesn't paint the cross-origin Instagram iframes inside a CSS-animated layer. */
 .colinner{display:flex;flex-direction:column;gap:var(--gap)}
 
+.card.folding{padding-top:0!important;padding-bottom:0!important;border-top-width:0!important;border-bottom-width:0!important;min-height:0!important}
 .card{width:100%;border-radius:16px;overflow:hidden;position:relative;box-shadow:0 12px 34px rgba(0,0,0,.4);flex:0 0 auto}
 .card.ig{background:#fff;align-self:center}
 .card.ig .scaler{transform-origin:top left}
@@ -350,10 +351,11 @@ function setStatus(text,kind){const el=$('conn');if(!text){el.style.opacity='0';
   el.style.background=c[0];el.style.color=c[1];el.textContent=text;el.style.opacity='1';}
 // If the internet drops, embeds go blank on reload — switch to the branded holding screen
 // on this screen only (not saved), and switch back when the connection returns.
-let autoHeld=false;
-window.addEventListener('offline',()=>{setStatus('No internet — showing the holding screen until it’s back','warn');
-  if(!settings.holding){autoHeld=true;$('holding').classList.add('show');}});
-window.addEventListener('online',()=>{if(autoHeld){autoHeld=false;applyBrand();}});
+let autoHeld=false,offlineTimer=null;
+window.addEventListener('offline',()=>{setStatus('No internet — wall keeps running; new posts wait until it’s back','warn');
+  clearTimeout(offlineTimer);offlineTimer=setTimeout(()=>{if(!navigator.onLine&&!settings.holding){autoHeld=true;$('holding').classList.add('show');
+    setStatus('No internet for 2 minutes — holding screen on until it’s back','warn');}},120000);});
+window.addEventListener('online',()=>{clearTimeout(offlineTimer);if(autoHeld){autoHeld=false;applyBrand();}});
 window.addEventListener('online',()=>{setStatus('Back online','ok');setTimeout(()=>setStatus(''),2500);});
 
 /* ---------- cloud sync ---------- */
@@ -418,7 +420,7 @@ window.addEventListener('message',e=>{
   heights[k]=h;loadedCodes.add(fr.dataset.code);
   if(adminOpen())renderQueue();
   document.querySelectorAll(`iframe[data-code="${fr.dataset.code}"]`).forEach(f=>{f.style.height=h+'px';});
-  scheduleReflow();
+  sizeCards();scheduleReflow();
 });
 
 /* ---------- cards ---------- */
@@ -438,14 +440,16 @@ function cardHTML(p){
 const IG_W=400;   // embed render width; scaled to fit the column
 let colOriginals=[],reflowTimer=null;
 function effectiveCols(){const w=innerWidth;if(w<=600)return 1;if(w<=900)return Math.min(2,settings.cols);return settings.cols;}
-function visiblePosts(){return posts.filter(p=>!p.hidden);}
+const MAX_ON_WALL=60;   // newest 60 visible posts scroll on the TV (older ones stay in the list); keeps the laptop light over a long show
+// The same Instagram post added twice shows once (the newest entry).
+function visiblePosts(){const seen=new Set(),out=[];const v=posts.filter(p=>!p.hidden);for(let i=v.length-1;i>=0;i--){const p=v[i],k=p.type==='ig'&&p.code?'ig:'+p.code:p.id;if(seen.has(k))continue;seen.add(k);out.push(p);}return out.reverse().slice(-MAX_ON_WALL);}
 function buildWall(){
   const grid=$('grid'),list=visiblePosts(),N=effectiveCols();
   if(ADMIN_MODE){grid.innerHTML='';colOriginals=[];colState=[];$('emptywall').classList.remove('show');return;}
   document.documentElement.style.setProperty('--cols',N);
   $('emptywall').classList.toggle('show',!list.length);
   colState=[];
-  if(!list.length){grid.innerHTML='';colOriginals=[];return;}
+  if(!list.length){if(gridBuilding){gridBuilding.remove();gridBuilding=null;gridPending=false;buildGen++;}grid.innerHTML='';colOriginals=[];placed=new Set();return;}
   // Fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full.
   const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
   if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
@@ -453,25 +457,26 @@ function buildWall(){
   wallLayout=JSON.stringify([settings.cols,settings.caps,N]);placed=new Set(list.map(p=>p.id));fillMode=list.length<N;liveOps=[];
   colOriginals=cols.map(c=>c.map(cardHTML).join(''));
   lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
-  // 3 stacked copies per column (seamless loop); reflow only changes sizes and the scroll distance
-  const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner+inner}</div></div>`).join('');
-  if(!grid.querySelector('.card')){grid.innerHTML=html;requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
+  // 2 stacked copies per column (seamless loop); reflow only changes sizes and the scroll distance
+  const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner}</div></div>`).join('');
+  if(!grid.querySelector('.card')){grid.innerHTML=html;revealAll(grid);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
   // No flash on updates: build the new wall invisibly behind the current one, wait until its Instagram
   // posts have loaded, then cross-fade. The current wall keeps scrolling the whole time.
   const next=document.createElement('div');next.className='grid';
   next.style.cssText='opacity:0;pointer-events:none;transition:opacity .9s ease';
   next.innerHTML=html;grid.parentNode.insertBefore(next,grid.nextSibling);
-  gridBuilding=next;sizeCards();
+  gridBuilding=next;next.__t=Date.now();sizeCards();const revealed=revealAll(next);
   // Swap only when every embed in the new wall has loaded (+1.5 s for Instagram to paint it).
   // If Instagram is very slow, swap anyway after 30 s so new posts still appear.
-  const frames=[...next.querySelectorAll('iframe')];let left=frames.length,done=false;
-  const ready=()=>{if(done)return;done=true;setTimeout(()=>swapGrid(grid,next),1500);};
-  frames.forEach(f=>f.addEventListener('load',()=>{if(--left<=0)ready();},{once:true}));
-  if(!left)ready();
-  setTimeout(ready,30000);
+  let done=false;
+  const gen=++buildGen;
+  const ready=()=>{if(done||gen!==buildGen)return;done=true;setTimeout(()=>{if(gen===buildGen&&next.isConnected)swapGrid(grid,next);},1500);};
+  revealed.then(ready);setTimeout(ready,30000);
 }
-let gridBuilding=null,gridPending=false,fadeState=[];
+let gridBuilding=null,gridPending=false,fadeState=[],buildGen=0;
+function revealAll(g){const by={},ps=[];g.querySelectorAll('.card.ig').forEach(c=>{(by[c.dataset.pid]=by[c.dataset.pid]||[]).push(c);});Object.values(by).forEach(els=>ps.push(new Promise(r=>revealWhenLoaded(els,false,r))));return Promise.all(ps);}
 function swapGrid(old,next){
+  if(!old.isConnected||!next.isConnected||next.id==='grid')return;   // already swapped (watchdog or timer)
   fadeState=colState;               // the old wall keeps scrolling while it fades out
   old.removeAttribute('id');next.id='grid';
   old.style.transition='opacity .9s ease';
@@ -486,6 +491,7 @@ function sizeCards(){
     col.querySelectorAll('.card.ig').forEach(card=>{
       const fr=card.querySelector('iframe');const h=parseFloat(fr.style.height)||estHeight(IG_W);
       card.querySelector('.scaler').style.transform=`scale(${scale})`;
+      const key=scale.toFixed(4)+'|'+h;if(card.dataset.sz===key&&!card.dataset.anim)return;card.dataset.sz=key;
       card.style.width=Math.round(IG_W*scale)+'px';if(card.dataset.anim)card.dataset.h=Math.round(h*scale);else card.style.height=Math.round(h*scale)+'px';});
   });
 }
@@ -495,24 +501,71 @@ function reflow(){
   sizeCards();
   const cols=[...$('grid').querySelectorAll('.col')];
   colState=cols.map((col,ci)=>{
-    const inner=col.querySelector('.colinner');const kids=[...inner.children].filter(el=>!el.dataset.leaving);const per=kids.length/3;
+    const inner=col.querySelector('.colinner');const kids=[...inner.children].filter(el=>!el.dataset.leaving);const per=kids.length/2;
     const old=colState[ci]||{pos:null};
     if(!per)return {inner,pos:0,shift:0};
     if(per%1)return old.inner?old:{inner,pos:0,shift:0};          // a card is mid-animation: keep the current state
     const shift=kids[per].offsetTop-kids[0].offsetTop;
     // only scroll when the content is taller than the column
-    const run=shift>=col.clientHeight*0.9;
+    const run=shift>=col.clientHeight+10;              // 2 copies cover the screen only when one copy is taller than it
     let pos=old.pos==null?ci*shift*0.27:old.pos;     // stagger columns on first start
-    if(run&&shift>0)pos=pos%shift;
-    if(!run){pos=0;inner.style.transform='none';}
-    return {inner,pos,shift:run?shift:0};
+    let phase=old.phase||0;
+    if(run&&shift>0&&pos>=shift){const k=Math.floor(pos/shift);pos-=k*shift;phase^=(k&1);}
+    if(!run){
+      // Too few posts left to scroll. If it was scrolling, fade this column out, settle it at the top, fade back in
+      // (a soft fade, never a snap). If it was already still, just make sure it sits at the top.
+      if(old.shift&&old.inner===inner&&!inner.__stopping){
+        inner.__stopping=1;const fr={inner,pos:Math.min(old.pos||0,shift),shift:shift||1,phase:old.phase||0};
+        const off=placeCopies(fr);inner.style.transform=`translate3d(0,${-(fr.pos+off).toFixed(2)}px,0)`;
+        inner.style.transition='opacity .3s ease';inner.style.opacity='0';
+        setTimeout(()=>{const c=colState[ci];if(!(c&&c.inner===inner&&c.shift)){fr.phase=0;fr.shift=0;placeCopies(fr);inner.style.transform='none';}
+          inner.style.opacity='1';setTimeout(()=>{inner.style.transition='';delete inner.__stopping;},350);},320);
+      }else if(!inner.__stopping){const ns={inner,pos:0,shift:0,phase:0};placeCopies(ns);inner.style.transform='none';}
+      return {inner,pos:0,shift:0,phase:0};
+    }
+    if(inner.__stopping){delete inner.__stopping;inner.style.opacity='1';}
+    return {inner,pos,shift,phase};
   });
 }
 let lastT=performance.now();
+// Posts that did not load in time (bad Wi-Fi, laptop asleep) are folded away, then retried: every minute for the
+// first few tries, then every 5 minutes, and straight away when the internet comes back. A retry takes the
+// hidden copies out and slots the post in again at the loop point, like a new post, so nothing on screen moves.
+const retryCount={};let lastRetry=0;
+function retryFailed(force){
+  if(!navigator.onLine||gridBuilding||ADMIN_MODE||fillMode)return;
+  const now=Date.now();if(!force&&now-lastRetry<55000)return;lastRetry=now;
+  const g=$('grid');if(!g)return;const cols=[...g.querySelectorAll('.col')];
+  const ids=new Set([...g.querySelectorAll('.card[data-failed]')].filter(c=>!c.dataset.leaving).map(c=>c.dataset.pid));
+  if(!ids.size)return;const list=visiblePosts();
+  ids.forEach(id=>{const p=list.find(x=>x.id===id);if(!p||liveOps.some(o=>o.post&&o.post.id===id))return;
+    const n=retryCount[id]||0;if(!force&&n>=3&&n%5)  {retryCount[id]=n+1;return;}
+    retryCount[id]=n+1;liveRemove(cols,id);liveOps.push({type:'add',post:p});});
+}
+setInterval(()=>retryFailed(false),60000);
+setInterval(()=>{const nx=gridBuilding,cur=document.getElementById('grid');if(nx&&nx.isConnected&&cur&&cur!==nx&&nx.__t&&Date.now()-nx.__t>40000)swapGrid(cur,nx);},5000);
+window.addEventListener('online',()=>setTimeout(()=>retryFailed(true),4000));
+document.addEventListener('visibilitychange',()=>{lastT=performance.now();
+  if(!document.hidden){setTimeout(reflow,300);setTimeout(()=>retryFailed(true),5000);}});
+// Seamless loop without swapping cards on screen.
+// Each column holds the posts twice (copy A, then copy B). The old loop jumped from the end of copy B back to the
+// start of copy A: the same posts, but different embeds, and copy A had been off screen for a long time, so Chrome
+// showed it white for a frame while repainting (the flicker). Now, when a loop ends, copy A is moved below copy B
+// instead ("phase 1"), so the posts on screen stay the very same embeds; the next loop puts copy A back. Nothing
+// on screen ever changes instance, and off-screen copies always come in from the bottom edge.
+function placeCopies(st){
+  const kids=st.inner.children,n=kids.length,half=n>>1;let off=0,down='';
+  if(st.phase&&st.shift&&half&&!(n%2)){off=kids[half].offsetTop-kids[0].offsetTop;down=`translate3d(0,${(2*off).toFixed(2)}px,0)`;}
+  else if(st.phase&&st.shift){st.phase=0;}
+  for(let i=0;i<n;i++){const want=i<half?down:'';if(kids[i].__dn!==want){kids[i].style.transform=want;kids[i].__dn=want;}}
+  return off;
+}
 function tick(t){
   const dt=Math.min(0.1,(t-lastT)/1000);lastT=t;
-  for(const s of colState.concat(fadeState)){if(!s.shift)continue;s.pos=(s.pos+settings.speed*dt)%s.shift;
-    s.inner.style.transform=`translate3d(0,${-s.pos.toFixed(2)}px,0)`;}
+  for(const s of colState.concat(fadeState)){if(!s.shift)continue;
+    s.pos+= settings.speed*dt;if(s.pos>=s.shift){s.pos-=s.shift;if(s.pos>=s.shift)s.pos%=s.shift;s.phase=(s.phase||0)^1;}
+    const off=placeCopies(s);
+    s.inner.style.transform=`translate3d(0,${-(s.pos+off).toFixed(2)}px,0)`;}
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -555,69 +608,94 @@ function applyAll(){
    A new card is slotted in at the end of a column's loop only while that spot is off-screen, and a hidden card
    is taken out only while none of its copies is on screen, so nothing visible jumps or reloads. */
 let wallLayout='',placed=new Set(),fillMode=false,liveOps=[];
+const $g=()=>document.getElementById('grid');
 function animateIn(els){
-  els.forEach(el=>{const h=el.offsetHeight;el.style.overflow='hidden';el.style.opacity='0';el.style.height='0px';
+  els.forEach(el=>{const h=el.offsetHeight;el.style.overflow='hidden';el.style.opacity='0';el.classList.add('folding');el.style.height='0px';
     requestAnimationFrame(()=>{el.style.transition='height .5s ease, opacity .6s ease .2s';el.style.height=h+'px';el.style.opacity='1';});
     setTimeout(()=>{el.style.transition='';el.style.overflow='';},900);});
 }
-function revealWhenLoaded(els,collapse){
-  els.forEach(el=>{el.style.opacity='0';if(collapse){el.dataset.anim='1';el.dataset.h=el.offsetHeight;el.style.overflow='hidden';el.style.height='0px';}});
-  let shown=false;const show=()=>{if(shown)return;shown=true;
+function revealWhenLoaded(els,collapse,onDone){
+  // A card is shown only after its embed has loaded AND Instagram has reported the post's size (so it really rendered).
+  // Posts that never render (deleted, private, embedding off, very slow) stay hidden and fold away; the panel marks them NOT LOADING.
+  els=els.filter(Boolean);if(!els.length){onDone&&onDone();return;}
+  els.forEach(el=>{el.style.opacity='0';if(collapse){el.dataset.anim='1';el.dataset.h=el.offsetHeight;el.style.overflow='hidden';el.classList.add('folding');el.style.height='0px';}});
+  const fr=els[0].querySelector('iframe'),code=fr&&fr.dataset.code;let done=false,loaded=!fr;
+  const finish=ok=>{if(done)return;done=true;onDone&&setTimeout(onDone,ok?700:900);
     els.forEach(el=>{if(!el.isConnected)return;
-      if(collapse){el.style.transition='height .5s ease, opacity .6s ease .25s';el.style.height=el.dataset.h+'px';}
-      else el.style.transition='opacity .6s ease';
-      requestAnimationFrame(()=>{el.style.opacity='1';});
-      setTimeout(()=>{el.style.transition='';delete el.dataset.anim;},1000);});
+      if(ok){if(collapse){el.style.transition='height .5s ease, padding .5s ease, border-width .5s ease, opacity .6s ease .25s';el.classList.remove('folding');el.style.height=el.dataset.h+'px';}
+        else el.style.transition='opacity .6s ease';requestAnimationFrame(()=>{el.style.opacity='1';});
+        setTimeout(()=>{el.style.transition='';if(collapse){el.style.height='';el.style.overflow='';}delete el.dataset.anim;},1000);}
+      else{el.dataset.anim='1';el.dataset.failed='1';el.style.overflow='hidden';el.style.transition='height .45s ease, margin .45s ease, padding .45s ease, border-width .45s ease';
+        const gap=parseFloat(getComputedStyle(el.parentNode).rowGap)||0;el.classList.add('folding');el.style.height='0px';el.style.marginBottom=(-gap)+'px';}});
     setTimeout(reflow,1050);};
-  const frames=els.map(el=>el.querySelector('iframe')).filter(Boolean);
-  if(!frames.length){setTimeout(show,50);return;}
-  let left=frames.length;frames.forEach(fr=>fr.addEventListener('load',()=>{if(--left<=0)setTimeout(show,900);},{once:true}));
-  setTimeout(show,12000);
+  const check=()=>{if(done)return;if(!els.some(e=>e.isConnected)){done=true;onDone&&onDone();return;}if(loaded&&(!code||loadedCodes.has(code)))setTimeout(()=>finish(true),700);else setTimeout(check,300);};
+  if(fr)els.forEach(el=>{const f=el.querySelector('iframe');f&&f.addEventListener('load',()=>{loaded=true;},{once:true});});
+  check();
+  setTimeout(()=>finish(false),25000);
 }
 function liveInsert(col,ci,p,since){
-  const inner=col.querySelector('.colinner'),kids=[...inner.children].filter(el=>!el.dataset.leaving),per=kids.length/3,s=colState[ci]||{pos:0,shift:0};
+  const inner=col.querySelector('.colinner'),kids=[...inner.children].filter(el=>!el.dataset.leaving),per=kids.length/2,s=colState[ci]||{pos:0,shift:0};
   if(per%1)return false;                                          // a card is still fading out: try again shortly
   const seamOnScreen=s.shift&&s.pos+col.clientHeight>s.shift-8;
   if(seamOnScreen&&Date.now()-since<10000)return false;          // wait (max 10 s) for the loop's seam to be off-screen
   const html=cardHTML(p);
-  if(!per)inner.insertAdjacentHTML('beforeend',html+html+html);
-  else{const refs=[3,2,1].map(k=>kids[k*per-1]);if(refs.some(r=>!r))return false;refs.forEach(r=>r.insertAdjacentHTML('afterend',html));}
+  if(!per)inner.insertAdjacentHTML('beforeend',html+html);
+  else{const refs=[2,1].map(k=>kids[k*per-1]);if(refs.some(r=>!r))return false;refs.forEach(r=>r.insertAdjacentHTML('afterend',html));}
   sizeCards();
   // New cards stay invisible until their embed has loaded (no white box while it loads), then fade in.
   // If the spot is on screen, the card also starts collapsed and expands once loaded.
-  const mine=[...inner.querySelectorAll(`[data-pid="${CSS.escape(p.id)}"]`)];
+  const mine=[...inner.querySelectorAll(`[data-pid="${CSS.escape(p.id)}"]`)].filter(el=>!el.dataset.leaving);
   revealWhenLoaded(mine,seamOnScreen);
   reflow();setTimeout(reflow,950);return true;
 }
 function liveRemove(cols,id){
-  // Hidden posts leave at once: copies off-screen are removed instantly (keeping the view still);
-  // a copy on screen fades out, then its space closes smoothly.
+  // Both copies of a post always change together, so the loop stays seamless.
+  // Not on screen: removed at once (view kept still). On screen: every copy fades out (content gone in 0.4 s),
+  // then all copies fold away together while the scroll position is corrected so nothing on screen jumps.
   for(let ci=0;ci<cols.length;ci++){
     const inner=cols[ci].querySelector('.colinner'),kids=[...inner.children],els=kids.filter(el=>el.dataset.pid===id);
     if(!els.length)continue;
-    const s=colState[ci]||{pos:0,shift:0},H=cols[ci].clientHeight,base=kids[0].offsetTop;
-    const gap=parseFloat(getComputedStyle(inner).rowGap)||0;let dy=0;const visible=[];
-    els.forEach(el=>{const t=el.offsetTop-base,h=el.offsetHeight;
-      if(s.shift&&t<s.pos+H&&t+h>s.pos)visible.push(el);
-      else{if(s.shift&&t+h<=s.pos)dy+=h+gap;el.remove();}});
-    if(s.shift)s.pos=Math.max(0,s.pos-dy);
-    visible.forEach(el=>{el.dataset.leaving='1';el.style.transition='opacity .4s ease';el.style.opacity='0';
-      setTimeout(()=>{el.style.height=el.offsetHeight+'px';el.style.overflow='hidden';
-        requestAnimationFrame(()=>{el.style.transition='height .45s ease, margin .45s ease';el.style.height='0px';el.style.marginBottom=(-gap)+'px';});
-        setTimeout(()=>{el.remove();reflow();},480);},420);});
-    reflow();
+    const S=colState[ci]||{pos:0,shift:0},H=cols[ci].clientHeight,base=kids[0].offsetTop;
+    const gap=parseFloat(getComputedStyle(inner).rowGap)||0;
+    const geo=els.map(el=>({el,t:el.offsetTop-base,h:el.offsetHeight}));
+    const onScreen=S.shift&&geo.some(g=>g.t<S.pos+H&&g.t+g.h>S.pos);
+    if(!onScreen){let dy=0;geo.forEach(g=>{if(S.shift&&g.t+g.h<=S.pos)dy+=g.h+gap;g.el.remove();});
+      if(S.shift)S.pos=Math.max(0,S.pos-dy);reflow();continue;}
+    els.forEach(el=>{el.dataset.leaving='1';el.dataset.anim='1';el.style.transition='opacity .4s ease';el.style.opacity='0';});
+    setTimeout(()=>{
+      const live=()=>{const c=colState[ci];return c&&c.inner===inner?c:S;};   // reflow may have replaced the state object
+      const p0=live().pos;
+      // how much of each removed copy (plus its gap) sits above the top of the view: that part is compensated so the
+      // posts on screen stay still while the gap closes
+      geo.forEach(g=>{g.full=g.el.offsetHeight+gap;g.above=Math.max(0,Math.min(g.full,p0-g.t));});
+      els.forEach(el=>{el.style.height=el.offsetHeight+'px';el.style.overflow='hidden';});
+      requestAnimationFrame(()=>{els.forEach(el=>{el.style.transition='height .45s ease, margin .45s ease, padding .45s ease, border-width .45s ease';el.classList.add('folding');el.style.height='0px';el.style.marginBottom=(-gap)+'px';});
+        let prev=0;const t0=performance.now();
+        (function follow(){const comp=geo.reduce((a,g)=>{const cur=g.el.isConnected?g.el.offsetHeight+parseFloat(g.el.style.marginBottom||0)+gap:0;return a+Math.min(Math.max(0,g.full-cur),g.above);},0);
+          const L=live();if(L.shift)L.pos=Math.max(0,L.pos-(comp-prev));prev=comp;
+          // keep following until every copy has fully closed (or 1.5 s), then settle the last bit exactly
+          const closed=els.every(el=>!el.isConnected||(el.offsetHeight===0&&Math.abs(parseFloat(getComputedStyle(el).marginBottom)+gap)<0.5));
+          if(!closed&&performance.now()-t0<1500)requestAnimationFrame(follow);
+          else{const fin=geo.reduce((a,g)=>a+g.above,0);const L2=live();if(L2.shift)L2.pos=Math.max(0,L2.pos-(fin-prev));
+            els.forEach(el=>el.remove());reflow();}})();});
+    },420);
   }
   return true;
 }
 function processLiveOps(){
   if(!liveOps.length||gridBuilding||ADMIN_MODE)return;
-  const cols=[...$('grid').querySelectorAll('.col')];if(!cols.length)return;
+  const cols=[...$g().querySelectorAll('.col')];if(!cols.length)return;
+  // Height of each column's loop; columns with a card mid-animation are skipped this round.
+  const load=cols.map((c,ci)=>{const kids=[...c.querySelector('.colinner').children].filter(el=>!el.dataset.leaving);
+    if(kids.some(el=>el.dataset.anim&&!el.dataset.failed)||(kids.length/2)%1)return Infinity;
+    const st=colState[ci];return st&&st.shift?st.shift:c.querySelector('.colinner').scrollHeight/2;});
   for(let i=0;i<liveOps.length;i++){
     const op=liveOps[i];let ok=false;
     if(op.type==='add'){
-      if(op.col==null||op.col>=cols.length){let best=0,bh=Infinity;
-        cols.forEach((c,ci)=>{const st=colState[ci];const h=st&&st.shift?st.shift:c.querySelector('.colinner').scrollHeight/3;if(h<bh){bh=h;best=ci;}});op.col=best;}
-      ok=liveInsert(cols[op.col],op.col,op.post,op.since||(op.since=Date.now()));
+      op.since=op.since||Date.now();
+      // try the least-full columns first (never pin a post to one column)
+      const order=load.map((h,ci)=>[h,ci]).filter(x=>x[0]<Infinity).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+      for(const ci of order){if(liveInsert(cols[ci],ci,op.post,op.since)){ok=true;load[ci]=Infinity;break;}}
     }else ok=liveRemove(cols,op.id);
     if(ok){liveOps.splice(i,1);i--;}
   }
@@ -653,7 +731,7 @@ function sugItems(){
 }
 function sugPending(){const on=new Set(posts.filter(p=>p.type==='ig').map(p=>p.code));return sugItems().filter(x=>x.st==='new'&&!on.has(x.c));}
 async function pollHelper(force){
-  if(sugBusy||(!force&&!adminOpen()))return;
+  if(sugBusy||(!force&&!(adminOpen()&&tab==='suggest')))return;
   sugBusy=true;
   try{
     const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
