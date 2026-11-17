@@ -461,11 +461,13 @@ function buildWall(){
   next.style.cssText='opacity:0;pointer-events:none;transition:opacity .9s ease';
   next.innerHTML=html;grid.parentNode.insertBefore(next,grid.nextSibling);
   gridBuilding=next;sizeCards();
+  // Swap only when every embed in the new wall has loaded (+1.5 s for Instagram to paint it).
+  // If Instagram is very slow, swap anyway after 30 s so new posts still appear.
   const frames=[...next.querySelectorAll('iframe')];let left=frames.length,done=false;
   const ready=()=>{if(done)return;done=true;setTimeout(()=>swapGrid(grid,next),1500);};
   frames.forEach(f=>f.addEventListener('load',()=>{if(--left<=0)ready();},{once:true}));
   if(!left)ready();
-  setTimeout(ready,12000);   // never wait more than 12 s
+  setTimeout(ready,30000);
 }
 let gridBuilding=null,gridPending=false,fadeState=[];
 function swapGrid(old,next){
