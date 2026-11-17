@@ -538,7 +538,7 @@ async function pollHelper(){
     if(useCloud&&staffUser&&d.ok){
       const ups={};let n=0;
       (d.items||[]).slice(0,80).forEach(i=>{if(!sugCloud[i.id]&&!sugStates[i.id]){ups['items/'+i.id]={c:i.code,k:i.kind,ty:i.type||'',t:i.ts||0,cap:(i.cap||'').slice(0,220),th:i.thumb||'',st:'new'};n++;}});
-      if(n||Date.now()-sugLastMeta>120000){ups.meta={tag:d.tag||'',at:Date.now(),ok:true};sugLastMeta=Date.now();}
+      if(n||Date.now()-sugLastMeta>120000){ups.meta={tag:d.tag||'',at:Date.now(),ok:true,page:(d.account&&d.account.page)||'',ig:(d.account&&d.account.ig)||''};sugLastMeta=Date.now();}
       if(Object.keys(ups).length)wallRef.child('suggest').update(ups).catch(e=>console.warn('suggest sync',e));
     }
   }catch(e){sugLocal=null;}
@@ -580,6 +580,8 @@ function renderSuggest(){
     if(sugLocal.ok&&useCloud&&!staffUser)msg+=' · sign in (top right) so phones see these too';}
   else if(sugMeta&&sugMeta.at){const fresh=Date.now()-sugMeta.at<300000;dot=fresh?'ok':'warn';msg=`From the event laptop · #${esc(sugMeta.tag||'')} · last update ${agoText(sugMeta.at)}`+(fresh?'':' · is the helper still running?');}
   else{msg=helperHere()?'No hashtag helper found on this laptop. Double-click “Start Hashtag Helper” in the Social-Wall folder.':'No suggestions yet. They appear when the event laptop runs the hashtag helper.';}
+  const acct=(sugLocal&&sugLocal.account)||(sugMeta&&sugMeta.ig?{page:sugMeta.page,ig:sugMeta.ig}:null);
+  if(acct&&acct.ig)msg+=`<br>Searching with Instagram account <b>@${esc(acct.ig)}</b> (connected to the Facebook Page <b>${esc(acct.page)}</b>)`;
   $('sugdot').className='sugdot '+dot;$('sugstatus').innerHTML=msg;
   const L=$('suglist');
   if(!pend.length){L.innerHTML='<div class="emptyq">No new posts to review right now.</div>';return;}
