@@ -239,11 +239,10 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
         </div>
 
         <div id="modeSuggest" class="hidefield">
-          <div class="sugbar"><span class="sugdot" id="sugdot"></span><span id="sugstatus">Looking for the hashtag helper…</span></div>
-          <div class="help" style="margin:0 0 10px">New public Instagram posts with the event hashtag show up here (found by the hashtag helper running on the event laptop). Nothing goes on the wall until you press <b>Add to wall</b>.</div>
+          <div class="sugbar"><span class="sugdot" id="sugdot"></span><span id="sugstatus">Checking Instagram…</span></div>
+          <div class="help" style="margin:0 0 10px">New public Instagram posts with the event hashtag (Branding → Hashtag, plus any extra hashtags) show up here within about a minute, on any device. Nothing goes on the wall until you press <b>Add to wall</b>.</div>
           <div class="formactions" style="margin:0 0 10px;gap:8px;display:flex;flex-wrap:wrap">
             <button class="btn ghost sm" onclick="skipAllSuggestions()">Skip all shown</button>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;color:rgba(255,255,255,.7)"><input type="checkbox" id="helperhere" onchange="setHelperHere(this.checked)" style="width:auto;margin:0"> This laptop runs the hashtag helper</label>
           </div>
           <div class="suglist" id="suglist"></div>
         </div>
@@ -261,6 +260,8 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
             <div><label>Event name</label><input id="b_event" placeholder="Annual Summit 2026"></div>
             <div><label>Hashtag</label><input id="b_tag" placeholder="#yourhashtag"></div>
           </div>
+          <label>Extra hashtags to search (optional, up to 2)</label><input id="b_moretags" placeholder="#MyntraCFD, #CFD2026">
+          <div class="help">The Suggestions tab searches the main hashtag plus these. Only the main one shows on the wall.</div>
           <label>Logo (PNG/SVG, under 500 KB)</label><input type="file" id="b_logo" accept="image/*">
           <div class="formactions" style="margin-top:8px"><button class="btn ghost sm" onclick="clearLogo()">Remove logo</button></div>
           <div class="row3">
@@ -321,7 +322,7 @@ const WALL_ID = (new URLSearchParams(location.search).get('wall')||'myntra-cfd')
 const ADMIN_MODE = new URLSearchParams(location.search).has('admin');
 const useCloud = !!FIREBASE_CONFIG.databaseURL && typeof firebase!=='undefined';
 const KEY = 'igwall_v1_'+WALL_ID;
-const DEFAULT_SETTINGS = {cols:4,speed:30,caps:0,event:'Customer First Day',tag:'#CustomerFirstDay',logo:'',accent:'#ff29a3',accent2:'#f98a16',bg:'#a70268',hmsg:'',holding:false};
+const DEFAULT_SETTINGS = {cols:4,speed:30,caps:0,event:'Customer First Day',tag:'#CustomerFirstDay',moreTags:'',logo:'',accent:'#ff29a3',accent2:'#f98a16',bg:'#a70268',hmsg:'',holding:false};
 let posts=[], settings={...DEFAULT_SETTINGS}, tab='links', wallRef=null;
 
 const $=id=>document.getElementById(id);
@@ -512,39 +513,34 @@ function applyAll(){
 }
 
 /* ---------- hashtag suggestions ----------
-   The hashtag helper (Social-Wall/hashtag-helper, run on the event laptop with "Start Hashtag Helper")
-   finds new public posts with the wall's hashtag. The laptop's wall page reads them from the helper and,
-   when a staff member is signed in, copies them to igwalls/<wall>/suggest so phones see them too.
-   Nothing is shown on the wall until staff press "Add to wall". Only the laptop talks to the helper:
-   it is switched on with &helper=1 in the link or the "This laptop runs the hashtag helper" tick box. */
+   The online hashtag service (Social-Wall/hashtag-worker, a Cloudflare Worker that holds the Instagram key)
+   searches the wall's hashtags with Instagram's official Hashtag Search API. Any signed-in device asks it
+   directly, so phones and laptops see the same list with nothing to install. Staff decisions (added / skipped)
+   are saved under igwalls/<wall>/suggest/items so every device agrees. Nothing is shown on the wall until staff
+   press "Add to wall". Old helper: Social-Wall/hashtag-helper (laptop fallback, ?helper=1). */
+const SUGGEST_URL='https://live-wall-hashtags.designcore777.workers.dev/suggest?wall='+encodeURIComponent(WALL_ID);
 const HELPER_URL='http://127.0.0.1:8840/suggestions';
-let sugCloud={},sugMeta=null,sugLocal=null,sugLocalAt=0,sugStates={},sugPreview=null,sugLastMeta=0;
-function helperHere(){return new URLSearchParams(location.search).get('helper')==='1'||store.get('igwall_helper_here')==='1';}
-function setHelperHere(on){store.set('igwall_helper_here',on?'1':'0');if(on)pollHelper();renderSuggest();}
+let sugCloud={},sugMeta=null,sugLocal=null,sugLocalAt=0,sugStates={},sugPreview=null,sugBusy=false;
+function helperHere(){return new URLSearchParams(location.search).get('helper')==='1';}
 function sugItems(){
   const m={};
   Object.entries(sugCloud||{}).forEach(([id,s])=>{if(s&&s.c)m[id]={id,...s};});
-  ((sugLocal&&sugLocal.items)||[]).forEach(i=>{if(!m[i.id])m[i.id]={id:i.id,c:i.code,k:i.kind,ty:i.type,t:i.ts,cap:i.cap,th:i.thumb,st:'new'};});
+  ((sugLocal&&sugLocal.items)||[]).forEach(i=>{if(!m[i.id])m[i.id]={id:i.id,c:i.code,k:i.kind,ty:i.type,t:i.ts,cap:i.cap,th:i.thumb,tg:i.tag||'',st:'new'};else if(!m[i.id].tg&&i.tag)m[i.id].tg=i.tag;});
   Object.entries(sugStates).forEach(([id,st])=>{if(m[id])m[id].st=st;});
   return Object.values(m).sort((a,b)=>(b.t||0)-(a.t||0));
 }
 function sugPending(){const on=new Set(posts.filter(p=>p.type==='ig').map(p=>p.code));return sugItems().filter(x=>x.st==='new'&&!on.has(x.c));}
-async function pollHelper(){
-  if(!helperHere())return;
+async function pollHelper(force){
+  if(sugBusy||(!force&&!adminOpen()))return;
+  sugBusy=true;
   try{
-    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),5000);
-    const r=await fetch(HELPER_URL,{cache:'no-store',signal:ctl.signal});clearTimeout(to);
+    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+    const r=await fetch(helperHere()?HELPER_URL:SUGGEST_URL,{cache:'no-store',signal:ctl.signal});clearTimeout(to);
     const d=await r.json();sugLocal=d;sugLocalAt=Date.now();
-    if(useCloud&&staffUser&&d.ok){
-      const ups={};let n=0;
-      (d.items||[]).slice(0,80).forEach(i=>{if(!sugCloud[i.id]&&!sugStates[i.id]){ups['items/'+i.id]={c:i.code,k:i.kind,ty:i.type||'',t:i.ts||0,cap:(i.cap||'').slice(0,220),th:i.thumb||'',st:'new'};n++;}});
-      if(n||Date.now()-sugLastMeta>120000){ups.meta={tag:d.tag||'',at:Date.now(),ok:true,page:(d.account&&d.account.page)||'',ig:(d.account&&d.account.ig)||''};sugLastMeta=Date.now();}
-      if(Object.keys(ups).length)wallRef.child('suggest').update(ups).catch(e=>console.warn('suggest sync',e));
-    }
-  }catch(e){sugLocal=null;}
-  renderSuggest();
+  }catch(e){sugLocal={ok:false,error:'Can’t reach the hashtag service right now (check the internet).',items:(sugLocal&&sugLocal.items)||[],updated:Date.now()};sugLocalAt=Date.now();}
+  sugBusy=false;renderSuggest();
 }
-setInterval(pollHelper,30000);setTimeout(pollHelper,2500);
+setInterval(()=>pollHelper(false),30000);
 function setSugState(it,st){
   sugStates[it.id]=st;
   if(useCloud&&staffUser){
@@ -574,12 +570,10 @@ function renderSuggest(){
   const pend=sugPending(),cnt=$('sugcount');
   if(cnt){cnt.style.display=pend.length?'inline-block':'none';cnt.textContent=pend.length>99?'99+':pend.length;}
   if(!adminOpen()||tab!=='suggest')return;
-  const hb=$('helperhere');if(hb)hb.checked=helperHere();
   let dot='',msg='';
-  if(sugLocal&&Date.now()-sugLocalAt<90000){dot=sugLocal.ok?'ok':'warn';msg=sugLocal.ok?`Hashtag helper connected on this laptop · watching #${esc(sugLocal.tag)} · checked ${agoText(sugLocal.updated)}`:`Hashtag helper problem: ${esc(sugLocal.error)}`;
-    if(sugLocal.ok&&useCloud&&!staffUser)msg+=' · sign in (top right) so phones see these too';}
-  else if(sugMeta&&sugMeta.at){const fresh=Date.now()-sugMeta.at<300000;dot=fresh?'ok':'warn';msg=`From the event laptop · #${esc(sugMeta.tag||'')} · last update ${agoText(sugMeta.at)}`+(fresh?'':' · is the helper still running?');}
-  else{msg=helperHere()?'No hashtag helper found on this laptop. Double-click “Start Hashtag Helper” in the Social-Wall folder.':'No suggestions yet. They appear when the event laptop runs the hashtag helper.';}
+  if(!sugLocal){msg='Checking Instagram…';}
+  else if(sugLocal.ok){dot='ok';msg=`Searching <b>#${esc((sugLocal.tag||'').split(/,\s*/).join(', #'))}</b> · updated ${agoText(sugLocal.updated||sugLocalAt)}`+(useCloud&&!staffUser?' · sign in (top right) to add posts':'');}
+  else{dot='warn';msg=`Hashtag search problem: ${esc(sugLocal.error||'unknown')}`;}
   const acct=(sugLocal&&sugLocal.account)||(sugMeta&&sugMeta.ig?{page:sugMeta.page,ig:sugMeta.ig}:null);
   if(acct&&acct.ig)msg+=`<br>Searching with Instagram account <b>@${esc(acct.ig)}</b> (connected to the Facebook Page <b>${esc(acct.page)}</b>)`;
   $('sugdot').className='sugdot '+dot;$('sugstatus').innerHTML=msg;
@@ -603,13 +597,13 @@ setInterval(()=>{if(adminOpen()&&tab==='suggest'&&!sugPreview)renderSuggest();},
 function adminOpen(){return $('admin').classList.contains('open');}
 function openAdmin(){
   if(ADMIN_PASSCODE&&sessionStorage.getItem('igwall_admin')!=='1'){const p=prompt('Passcode');if(p!==ADMIN_PASSCODE)return;sessionStorage.setItem('igwall_admin','1');}
-  $('admin').classList.add('open');renderQueue();syncForm();updateAuthUI();renderSuggest();
+  $('admin').classList.add('open');renderQueue();syncForm();updateAuthUI();renderSuggest();pollHelper(true);
 }
 function closeAdmin(){$('admin').classList.remove('open');}
 $('gear').onclick=openAdmin;
 function setTab(t){tab=t;[['links','Links'],['suggest','Suggest'],['custom','Custom'],['brand','Brand']].forEach(([k,n])=>{
   $('tab'+n).classList.toggle('on',t===k);$('mode'+n).classList.toggle('hidefield',t!==k);});
-  if(t==='suggest')renderSuggest();}
+  if(t==='suggest'){renderSuggest();pollHelper(true);}}
 
 function addLinks(){
   if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
@@ -652,17 +646,18 @@ function del(id){if(!canEdit()){setStatus('Sign in with Google (staff) to edit t
 function toggleHolding(){if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}settings.holding=!settings.holding;commit();if(useCloud)applyBrand();}
 
 function syncForm(){
-  $('b_event').value=settings.event||'';$('b_tag').value=settings.tag||'';$('b_hmsg').value=settings.hmsg||'';
+  $('b_event').value=settings.event||'';$('b_tag').value=settings.tag||'';$('b_moretags').value=settings.moreTags||'';$('b_hmsg').value=settings.hmsg||'';
   $('b_accent').value=safeColor(settings.accent,'#e1306c');$('b_accent2').value=safeColor(settings.accent2,'#833ab4');$('b_bg').value=safeColor(settings.bg,'#120b1f');
   $('s_cols').value=settings.cols;$('s_speed').value=settings.speed;$('s_caps').value=settings.caps?'1':'0';
 }
 function saveBrand(){
   if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');return;}
   let tag=$('b_tag').value.trim();if(tag&&!tag.startsWith('#'))tag='#'+tag;
-  Object.assign(settings,{event:$('b_event').value.trim(),tag:tag||'#yourhashtag',hmsg:$('b_hmsg').value.trim(),
+  const more=$('b_moretags').value.split(/[\s,]+/).map(t=>t.trim().replace(/^#?/,'#')).filter(t=>t.length>1).slice(0,2).join(', ');
+  Object.assign(settings,{event:$('b_event').value.trim(),tag:tag||'#yourhashtag',moreTags:more,hmsg:$('b_hmsg').value.trim(),
     accent:$('b_accent').value,accent2:$('b_accent2').value,bg:$('b_bg').value,
     cols:+$('s_cols').value||4,speed:+$('s_speed').value||30,caps:$('s_caps').value==='1'?1:0});
-  commit();
+  commit();setTimeout(()=>pollHelper(true),2500);
 }
 $('b_logo').addEventListener('change',e=>{if(!canEdit()){setStatus('Sign in with Google (staff) to edit the wall','err');e.target.value='';return;}const f=e.target.files[0];if(!f)return;
   if(f.size>500*1024){alert('Logo is over 500 KB. Export a smaller PNG or an SVG.');e.target.value='';return;}
