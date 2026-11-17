@@ -486,7 +486,7 @@ function sizeCards(){
     col.querySelectorAll('.card.ig').forEach(card=>{
       const fr=card.querySelector('iframe');const h=parseFloat(fr.style.height)||estHeight(IG_W);
       card.querySelector('.scaler').style.transform=`scale(${scale})`;
-      card.style.width=Math.round(IG_W*scale)+'px';card.style.height=Math.round(h*scale)+'px';});
+      card.style.width=Math.round(IG_W*scale)+'px';if(card.dataset.anim)card.dataset.h=Math.round(h*scale);else card.style.height=Math.round(h*scale)+'px';});
   });
 }
 // per-column scroll state: {pos, shift}; shift = distance to the identical next copy (0 = don't scroll)
@@ -560,6 +560,20 @@ function animateIn(els){
     requestAnimationFrame(()=>{el.style.transition='height .5s ease, opacity .6s ease .2s';el.style.height=h+'px';el.style.opacity='1';});
     setTimeout(()=>{el.style.transition='';el.style.overflow='';},900);});
 }
+function revealWhenLoaded(els,collapse){
+  els.forEach(el=>{el.style.opacity='0';if(collapse){el.dataset.anim='1';el.dataset.h=el.offsetHeight;el.style.overflow='hidden';el.style.height='0px';}});
+  let shown=false;const show=()=>{if(shown)return;shown=true;
+    els.forEach(el=>{if(!el.isConnected)return;
+      if(collapse){el.style.transition='height .5s ease, opacity .6s ease .25s';el.style.height=el.dataset.h+'px';}
+      else el.style.transition='opacity .6s ease';
+      requestAnimationFrame(()=>{el.style.opacity='1';});
+      setTimeout(()=>{el.style.transition='';delete el.dataset.anim;},1000);});
+    setTimeout(reflow,1050);};
+  const frames=els.map(el=>el.querySelector('iframe')).filter(Boolean);
+  if(!frames.length){setTimeout(show,50);return;}
+  let left=frames.length;frames.forEach(fr=>fr.addEventListener('load',()=>{if(--left<=0)setTimeout(show,900);},{once:true}));
+  setTimeout(show,12000);
+}
 function liveInsert(col,ci,p,since){
   const inner=col.querySelector('.colinner'),kids=[...inner.children].filter(el=>!el.dataset.leaving),per=kids.length/3,s=colState[ci]||{pos:0,shift:0};
   if(per%1)return false;                                          // a card is still fading out: try again shortly
@@ -569,8 +583,10 @@ function liveInsert(col,ci,p,since){
   if(!per)inner.insertAdjacentHTML('beforeend',html+html+html);
   else{const refs=[3,2,1].map(k=>kids[k*per-1]);if(refs.some(r=>!r))return false;refs.forEach(r=>r.insertAdjacentHTML('afterend',html));}
   sizeCards();
+  // New cards stay invisible until their embed has loaded (no white box while it loads), then fade in.
+  // If the spot is on screen, the card also starts collapsed and expands once loaded.
   const mine=[...inner.querySelectorAll(`[data-pid="${CSS.escape(p.id)}"]`)];
-  if(seamOnScreen)animateIn(mine);                                // on screen: expand in gently instead of popping
+  revealWhenLoaded(mine,seamOnScreen);
   reflow();setTimeout(reflow,950);return true;
 }
 function liveRemove(cols,id){
