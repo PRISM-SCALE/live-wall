@@ -449,11 +449,33 @@ function buildWall(){
   // Fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full.
   const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
   if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
+  if(gridBuilding){gridPending=true;return;}   // a new wall is already loading: rebuild again once it's shown
   colOriginals=cols.map(c=>c.map(cardHTML).join(''));
   lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
-  // render 3 stacked copies per column once; reflow only changes sizes and the scroll distance
-  grid.innerHTML=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner+inner}</div></div>`).join('');
-  requestAnimationFrame(()=>requestAnimationFrame(reflow));
+  // 3 stacked copies per column (seamless loop); reflow only changes sizes and the scroll distance
+  const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner+inner}</div></div>`).join('');
+  if(!grid.querySelector('.card')){grid.innerHTML=html;requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
+  // No flash on updates: build the new wall invisibly behind the current one, wait until its Instagram
+  // posts have loaded, then cross-fade. The current wall keeps scrolling the whole time.
+  const next=document.createElement('div');next.className='grid';
+  next.style.cssText='opacity:0;pointer-events:none;transition:opacity .9s ease';
+  next.innerHTML=html;grid.parentNode.insertBefore(next,grid.nextSibling);
+  gridBuilding=next;sizeCards();
+  const frames=[...next.querySelectorAll('iframe')];let left=frames.length,done=false;
+  const ready=()=>{if(done)return;done=true;setTimeout(()=>swapGrid(grid,next),1500);};
+  frames.forEach(f=>f.addEventListener('load',()=>{if(--left<=0)ready();},{once:true}));
+  if(!left)ready();
+  setTimeout(ready,12000);   // never wait more than 12 s
+}
+let gridBuilding=null,gridPending=false,fadeState=[];
+function swapGrid(old,next){
+  fadeState=colState;               // the old wall keeps scrolling while it fades out
+  old.removeAttribute('id');next.id='grid';
+  old.style.transition='opacity .9s ease';
+  reflow();                         // scroll state for the new wall (continues from the old positions)
+  requestAnimationFrame(()=>{next.style.opacity='1';next.style.pointerEvents='';old.style.opacity='0';});
+  setTimeout(()=>{old.remove();fadeState=[];gridBuilding=null;
+    if(gridPending){gridPending=false;lastBuildSig='';applyAll();}},1000);
 }
 function sizeCards(){
   document.querySelectorAll('.col').forEach(col=>{
@@ -468,7 +490,7 @@ function sizeCards(){
 let colState=[];
 function reflow(){
   sizeCards();
-  const cols=[...document.querySelectorAll('.col')];
+  const cols=[...$('grid').querySelectorAll('.col')];
   colState=cols.map((col,ci)=>{
     const inner=col.querySelector('.colinner');const kids=inner.children;const per=kids.length/3;
     const old=colState[ci]||{pos:null};
@@ -485,7 +507,7 @@ function reflow(){
 let lastT=performance.now();
 function tick(t){
   const dt=Math.min(0.1,(t-lastT)/1000);lastT=t;
-  for(const s of colState){if(!s.shift)continue;s.pos=(s.pos+settings.speed*dt)%s.shift;
+  for(const s of colState.concat(fadeState)){if(!s.shift)continue;s.pos=(s.pos+settings.speed*dt)%s.shift;
     s.inner.style.transform=`translate3d(0,${-s.pos.toFixed(2)}px,0)`;}
   requestAnimationFrame(tick);
 }
