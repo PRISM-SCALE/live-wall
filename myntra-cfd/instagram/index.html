@@ -179,9 +179,9 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 .emptywall{inset:17.5vh 0 5.5vh!important}
 @media(max-width:900px){.grid{top:11vh!important;bottom:0!important}}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261119e">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261119f">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261119e"></script>
+<script src="../brand/cfd.js?v=20261119f"></script>
 </head>
 <body>
 
@@ -439,7 +439,7 @@ function cardHTML(p){
 /* ---------- wall build + seamless scroll ---------- */
 const IG_W=400;   // embed render width; scaled to fit the column
 let colOriginals=[],reflowTimer=null;
-function effectiveCols(){const w=innerWidth;if(w<=600)return 1;if(w<=900)return Math.min(2,settings.cols);return settings.cols;}
+function effectiveCols(){const w=innerWidth;if(w<=600)return 1;if(w<=900)return Math.min(2,settings.cols);if(innerHeight>w*1.2)return Math.min(2,settings.cols);return settings.cols;}   // vertical TV (9:16): 2 big columns
 const MAX_ON_WALL=60;   // newest 60 visible posts scroll on the TV (older ones stay in the list); keeps the laptop light over a long show
 // The same Instagram post added twice shows once (the newest entry).
 function visiblePosts(){const seen=new Set(),out=[];const v=posts.filter(p=>!p.hidden);for(let i=v.length-1;i>=0;i--){const p=v[i],k=p.type==='ig'&&p.code?'ig:'+p.code:p.id;if(seen.has(k))continue;seen.add(k);out.push(p);}return out.reverse().slice(-MAX_ON_WALL);}
