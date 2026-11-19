@@ -165,6 +165,7 @@
       setTimeout(fitPill,1500);
       CFD.introStart(o.wall);
       animHolding(base);
+      animEmpty(base);
     },
     setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');requestAnimationFrame(fitPill);},
     // ---- Opening: "Loading" + spinner over the post area; once the first posts have loaded, a light wave rises
@@ -188,6 +189,17 @@
     }
   };
   const I={};
+  // An empty wall on the TV shows the animated holding screen instead of the operator's "no posts yet" note.
+  function animEmpty(base){
+    const e=document.getElementById('emptywall');if(!e||e.__anim||new URLSearchParams(location.search).has('admin'))return;e.__anim=1;
+    const on=()=>{if(e.querySelector('iframe.cfd-holdanim'))return;e.classList.add('cfd-empty-anim');
+      const f=document.createElement('iframe');f.className='cfd-holdanim';f.src=base+'holding/index.html?v=20261119b';f.setAttribute('aria-hidden','true');f.tabIndex=-1;
+      const pill=document.createElement('div');pill.className='cfd-emptytag cfd-tag';pill.textContent=(document.querySelector('.cfd-tag')||{}).textContent||'';
+      e.append(f,pill);};
+    const off=()=>{e.classList.remove('cfd-empty-anim');e.querySelectorAll('.cfd-holdanim,.cfd-emptytag').forEach(x=>x.remove());};
+    const sync=()=>{e.classList.contains('show')?on():off();};
+    new MutationObserver(sync).observe(e,{attributes:true,attributeFilter:['class']});sync();
+  }
   // Animated holding screen: when #holding is switched on, play the leadership-video logo build + gentle loop
   // (brand/holding/index.html) on top of the still artwork; removed again when the wall comes back.
   function animHolding(base){
