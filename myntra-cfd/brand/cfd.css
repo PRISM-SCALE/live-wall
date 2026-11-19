@@ -52,12 +52,12 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 .cfd-sw{fill:none;stroke-linecap:round;stroke-linejoin:round;mix-blend-mode:screen;pointer-events:none}
 .cfd-pill{position:absolute;right:2.4vw;top:calc(var(--cfd-head) * .4167);transform:translateY(-50%);
   display:inline-flex;align-items:center;gap:.52vw;padding:.52vw .94vw .52vw .8vw;border-radius:999px;
-  font-weight:700;font-size:max(1.56vw,12px);letter-spacing:.01em;color:#fff;
+  font-weight:700;font-size:1.56vw;letter-spacing:.01em;color:#fff;
   background:rgba(110,8,42,.55);border:1px solid transparent;
   box-shadow:0 .2vw .65vw rgba(80,0,35,.16), inset 0 1px 0 rgba(255,255,255,.22)}
-.cfd-net{display:flex;width:1.35vw;height:1.35vw;min-width:12px;min-height:12px}
+.cfd-net{display:flex;width:1.35vw;height:1.35vw}
 .cfd-net svg{width:100%;height:100%}
-.cfd-live{width:.37vw;height:.37vw;min-width:5px;min-height:5px;border-radius:50%;background:#fff;opacity:.85}
+.cfd-live{width:.37vw;height:.37vw;border-radius:50%;background:#fff;opacity:.85}
 .cfd-tagline{position:absolute;left:0;right:0;bottom:1.6vh;z-index:8;display:flex;align-items:center;justify-content:center;gap:1.05vw;
   font-weight:400;font-size:2.25vh;letter-spacing:.02em;color:#fff;text-shadow:0 .2vh .5vh rgba(80,0,35,.25);pointer-events:none}
 .cfd-tagline i{display:block;width:4.7vw;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45))}
@@ -90,7 +90,6 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 /* ---------- phones / small screens ---------- */
 @media(max-width:900px){
   .cfd-tagline{display:none}
-  .cfd-pill{padding:5px 10px 5px 8px;gap:6px}
 }
 @media(prefers-reduced-motion:reduce){
   .cfd-sky-grad,.cfd-orb,.cfd-puzzle{animation:none!important}
