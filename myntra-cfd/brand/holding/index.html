@@ -1,0 +1,116 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Customer First Day · holding</title>
+<!-- Holding screen for the Myntra Customer First Day walls (16:9).
+     Logo build + background motion taken from Myntra-Leaders-Intro/anim/leaders.html (approved leadership video).
+     Builds once when shown, then loops gently: drifting background, floating puzzle pieces, a light sweep along the ribbon. -->
+<style>
+@font-face{font-family:GilroyKV;src:url(GilroyKV.ttf) format('truetype')}
+*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:transparent}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;transform-origin:50% 50%;opacity:0;transition:opacity .5s ease}
+#stage.on{opacity:1}
+.l{position:absolute;display:block;will-change:transform,opacity}
+#bg{position:absolute;left:-40px;top:-24px;width:2000px;height:1128px;transform-origin:50% 50%}
+#light{position:absolute;left:0;top:0;width:1200px;height:1200px;margin:-600px 0 0 -600px;border-radius:50%;mix-blend-mode:soft-light;
+  background:radial-gradient(circle, rgba(255,236,205,.50) 0%, rgba(255,205,175,.16) 45%, rgba(255,205,175,0) 70%)}
+.pz{position:absolute;left:0;top:0;width:1920px;height:1080px;opacity:0}
+#world{position:absolute;left:0;top:0;width:1920px;height:1080px}
+</style>
+<div id=stage>
+  <img id=bg src="01_bg.png">
+  <div id=light></div>
+  <img id=pz0 class=pz src="02a_puzzle_tl.png" style="transform-origin:12% 22%">
+  <img id=pz1 class=pz src="02c_puzzle_tr.png" style="transform-origin:88% 25%">
+  <img id=pz2 class=pz src="02b_puzzle_bl.png" style="transform-origin:12% 80%">
+  <img id=pz3 class=pz src="02d_puzzle_br.png" style="transform-origin:88% 82%">
+  <div id=world>
+    <canvas id=line class=l width=1920 height=1080 style="left:0;top:0"></canvas>
+    <img id=logo class=l src="logo.png" style="left:845px;top:150px;width:230px;opacity:0">
+    <svg id=custsvg class=l width="1920" height="1080" viewBox="0 0 1920 1080" style="left:0;top:0;overflow:visible"><defs><clipPath id="tclip"><path d="M898.84,538.78 C891.31,543.56 880.34,545.71 868.94,545.71 C836.46,545.71 817.53,528.74 817.53,492.65 C817.53,492.65 817.53,459.19 817.53,459.19 C817.53,459.19 801.40,459.19 801.40,459.19 C801.40,459.19 801.40,419.76 801.40,419.76 C801.40,419.76 817.53,419.76 817.53,419.76 C817.53,419.76 817.53,383.19 817.53,383.19 C817.53,383.19 866.15,383.19 866.15,383.19 C866.15,383.19 866.15,419.76 866.15,419.76 C866.15,419.76 890.24,419.76 890.24,419.76 C890.24,419.76 890.24,459.19 890.24,459.19 C890.24,459.19 866.15,459.19 866.15,459.19 C866.15,459.19 866.15,492.17 866.15,492.17 C866.15,500.30 870.45,504.84 876.26,504.84 C880.13,504.84 884.00,503.64 887.23,501.25 C887.23,501.25 898.84,538.78 898.84,538.78 Z"/></clipPath></defs><g id=custtext><path id=tshape d="M898.84,538.78 C891.31,543.56 880.34,545.71 868.94,545.71 C836.46,545.71 817.53,528.74 817.53,492.65 C817.53,492.65 817.53,459.19 817.53,459.19 C817.53,459.19 801.40,459.19 801.40,459.19 C801.40,459.19 801.40,419.76 801.40,419.76 C801.40,419.76 817.53,419.76 817.53,419.76 C817.53,419.76 817.53,383.19 817.53,383.19 C817.53,383.19 866.15,383.19 866.15,383.19 C866.15,383.19 866.15,419.76 866.15,419.76 C866.15,419.76 890.24,419.76 890.24,419.76 C890.24,419.76 890.24,459.19 890.24,459.19 C890.24,459.19 866.15,459.19 866.15,459.19 C866.15,459.19 866.15,492.17 866.15,492.17 C866.15,500.30 870.45,504.84 876.26,504.84 C880.13,504.84 884.00,503.64 887.23,501.25 C887.23,501.25 898.84,538.78 898.84,538.78 Z" fill="#fff"/><text x="0" y="0" transform="translate(357.62,542.32) scale(1.0750,1)" font-family="GilroyKV" font-size="245.20" letter-spacing="-9.12" fill="#fff">Cust</text><text x="0" y="0" transform="translate(1075.09,542.32) scale(1.0630,1)" font-family="GilroyKV" font-size="253.00" letter-spacing="-6.83" fill="#fff">mer</text></g><g id=overt clip-path="url(#tclip)"><linearGradient id="03b_ribbon_over_t_glow" gradientUnits="userSpaceOnUse" x1="801" y1="0" x2="910" y2="0"><stop offset="0.000" stop-color="rgb(240,80,95)"/><stop offset="0.586" stop-color="rgb(240,110,90)"/><stop offset="0.793" stop-color="rgb(245,140,100)"/><stop offset="1.000" stop-color="rgb(245,140,100)"/></linearGradient><path d="M800.50,469.50 C802.20,468.30 807.10,464.70 810.50,462.40 C813.80,460.10 817.30,458.00 820.80,456.00 C824.30,453.90 828.00,452.10 831.50,450.00 C835.00,448.00 838.50,445.90 842.00,443.80 C845.50,441.70 849.00,439.50 852.40,437.30 C855.80,435.10 859.20,432.80 862.50,430.40 C865.80,428.10 869.20,425.80 872.30,423.20 C875.50,420.70 878.40,417.80 881.50,415.10 C884.60,412.50 887.90,410.10 891.00,407.50 C894.20,404.90 897.10,402.10 900.40,399.60 C903.60,397.10 908.70,393.80 910.40,392.60" fill="none" stroke="url(#03b_ribbon_over_t_glow)" stroke-width="7" stroke-opacity="0.060" stroke-linecap="round"/><linearGradient id="03b_ribbon_over_t_edge" gradientUnits="userSpaceOnUse" x1="801" y1="0" x2="910" y2="0"><stop offset="0.000" stop-color="rgb(245,90,95)"/><stop offset="0.276" stop-color="rgb(238,132,100)"/><stop offset="0.586" stop-color="rgb(240,130,90)"/><stop offset="0.707" stop-color="rgb(248,170,110)"/><stop offset="0.793" stop-color="rgb(252,215,160)"/><stop offset="1.000" stop-color="rgb(252,215,150)"/></linearGradient><path d="M800.50,469.50 C802.20,468.30 807.10,464.70 810.50,462.40 C813.80,460.10 817.30,458.00 820.80,456.00 C824.30,453.90 828.00,452.10 831.50,450.00 C835.00,448.00 838.50,445.90 842.00,443.80 C845.50,441.70 849.00,439.50 852.40,437.30 C855.80,435.10 859.20,432.80 862.50,430.40 C865.80,428.10 869.20,425.80 872.30,423.20 C875.50,420.70 878.40,417.80 881.50,415.10 C884.60,412.50 887.90,410.10 891.00,407.50 C894.20,404.90 897.10,402.10 900.40,399.60 C903.60,397.10 908.70,393.80 910.40,392.60" fill="none" stroke="url(#03b_ribbon_over_t_edge)" stroke-width="4.40000009536743" stroke-opacity="0.400" stroke-linecap="round"/><linearGradient id="03b_ribbon_over_t_core" gradientUnits="userSpaceOnUse" x1="801" y1="0" x2="910" y2="0"><stop offset="0.000" stop-color="rgb(255,128,108)"/><stop offset="0.207" stop-color="rgb(252,112,94)"/><stop offset="0.276" stop-color="rgb(243,119,86)"/><stop offset="0.586" stop-color="rgb(246,116,70)"/><stop offset="0.638" stop-color="rgb(248,134,66)"/><stop offset="0.707" stop-color="rgb(250,180,98)"/><stop offset="0.759" stop-color="rgb(254,228,160)"/><stop offset="0.828" stop-color="rgb(255,245,186)"/><stop offset="1.000" stop-color="rgb(255,239,155)"/></linearGradient><path d="M800.50,469.50 C802.20,468.30 807.10,464.70 810.50,462.40 C813.80,460.10 817.30,458.00 820.80,456.00 C824.30,453.90 828.00,452.10 831.50,450.00 C835.00,448.00 838.50,445.90 842.00,443.80 C845.50,441.70 849.00,439.50 852.40,437.30 C855.80,435.10 859.20,432.80 862.50,430.40 C865.80,428.10 869.20,425.80 872.30,423.20 C875.50,420.70 878.40,417.80 881.50,415.10 C884.60,412.50 887.90,410.10 891.00,407.50 C894.20,404.90 897.10,402.10 900.40,399.60 C903.60,397.10 908.70,393.80 910.40,392.60" fill="none" stroke="url(#03b_ribbon_over_t_core)" stroke-width="2.70000004768372" stroke-opacity="1.000" stroke-linecap="round"/></g></svg>
+    <img id=av class=l src="avatar.png" style="left:910px;top:392px;width:158px;height:158px;opacity:0">
+    <img id=fdimg src="first_day.png" style="display:none">
+    <canvas id=fd class=l width=1920 height=1080 style="left:0;top:0"></canvas>
+    <img id=tag class=l src="tagline.png" style="left:0;top:0;width:1920px;height:1080px;opacity:0">
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cl=x=>Math.min(1,Math.max(0,x)), eo=x=>1-Math.pow(1-cl(x),3);
+const eio=x=>{x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
+const back=x=>{x=cl(x);const c=1.4;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2);};
+const seg=(t,a,b)=>(t-a)/(b-a);
+const PZ=[{ph:0.0,from:[-80,-40]},{ph:1.7,from:[80,-40]},{ph:3.1,from:[-80,40]},{ph:4.4,from:[80,40]}];
+let D,FDP,ctx,fctx,fm,fmc,tmp,tctx,full=null,fdDone=false,t0=0;
+function stroke(pts, prog, sw) {
+  tctx.lineWidth = sw; tctx.lineCap = 'round'; tctx.lineJoin = 'round';
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i-1], b = pts[i]; if (a[5] >= prog) break; if (!a[6] || !b[6]) continue;
+    let bx = b[0], by = b[1]; if (b[5] > prog) { const k = (prog - a[5]) / (b[5] - a[5]); bx = a[0] + (b[0]-a[0])*k; by = a[1] + (b[1]-a[1])*k; }
+    tctx.strokeStyle = `rgb(${b[2]},${b[3]},${b[4]})`; tctx.beginPath(); tctx.moveTo(a[0], a[1]); tctx.lineTo(bx, by); tctx.stroke();
+  }
+}
+function drawFD(p) {
+  fctx.clearRect(0, 0, 1920, 1080); if (p <= 0) return;
+  const all = FDP.strokes.reduce((n, s) => n + s.length, 0), upto = p * all;
+  fmc.clearRect(0, 0, 1920, 1080); fmc.fillStyle = '#fff'; let c = 0; const r = 21;
+  for (const st of FDP.strokes) { for (const q of st) { if (c++ > upto) break; fmc.beginPath(); fmc.arc(q[0], q[1], r, 0, 7); fmc.fill(); } if (c > upto) break; }
+  fctx.globalCompositeOperation = 'source-over'; fctx.drawImage($('fdimg'), 564, 539, 837, 837 * $('fdimg').naturalHeight / $('fdimg').naturalWidth);
+  if (p < 1) { fctx.globalCompositeOperation = 'destination-in'; fctx.drawImage(fm, 0, 0); fctx.globalCompositeOperation = 'source-over'; }
+}
+
+function drawLineFull(prog){                      // the ribbon, drawn up to prog
+  ctx.clearRect(0,0,1920,1080);
+  for(const L of D.layers){tctx.clearRect(0,0,1920,1080);stroke(L.main,prog,L.sw);stroke(L.second,prog,L.sw);ctx.globalAlpha=L.op;ctx.drawImage(tmp,0,0);}
+  ctx.globalAlpha=1;
+}
+function glow(sweep,heart){                       // light running along the ribbon + heart glow (drawn on top)
+  if(sweep>0&&sweep<D.total+300){const core=D.layers[D.layers.length-1].main;ctx.globalCompositeOperation='lighter';
+    for(let i=1;i<core.length;i++){const a=core[i-1],b=core[i],d=sweep-b[5];if(d<0||d>260||!a[6]||!b[6])continue;const k=1-d/260;
+      ctx.strokeStyle=`rgba(255,236,190,${0.55*k})`;ctx.lineWidth=14*k+3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();}
+    ctx.globalCompositeOperation='source-over';}
+  if(heart>0){const g=ctx.createRadialGradient(1745,438,0,1745,438,90);g.addColorStop(0,`rgba(255,220,160,${0.55*heart})`);g.addColorStop(1,'rgba(255,140,90,0)');
+    ctx.globalCompositeOperation='lighter';ctx.fillStyle=g;ctx.beginPath();ctx.arc(1745,438,90,0,7);ctx.fill();ctx.globalCompositeOperation='source-over';}
+}
+const set=(id,o,tf)=>{const e=$(id);e.style.opacity=o;e.style.transform=tf||'none';};
+function animBg(T,k4){
+  const push=1.05-0.05*eo(T/12);
+  $('bg').style.transform=`translate(${16*Math.sin(T/5.5)}px,${20*Math.sin(T/7+1.1)}px) scale(${push+0.012*Math.sin(T/6)})`;
+  $('light').style.transform=`translate(${700+520*Math.sin(T/6.5)}px,${520+300*Math.sin(T/9+0.7)}px)`;
+  PZ.forEach((P,i)=>{const sp=[11,13,12,14][i],k=k4[i];
+    const dx=14*Math.sin(T*6.283/sp+P.ph)+P.from[0]*(1-k),dy=18*Math.sin(T*6.283/(sp*1.3)+P.ph*1.7)+P.from[1]*(1-k),r=1.6*Math.sin(T*6.283/(sp*1.6)+P.ph);
+    const e=$('pz'+i);e.style.opacity=k;e.style.transform=`translate(${dx}px,${dy}px) rotate(${r}deg)`;});
+}
+function fit(){const s=Math.max(innerWidth/1920,innerHeight/1080);$('stage').style.transform=`translate(-50%,-50%) scale(${s})`;}
+addEventListener('resize',fit);
+function frame(now){
+  const t=(now-t0)/1000;
+  animBg(t,[0,1,2,3].map(i=>eo(seg(t,0.15*i,2.2+0.15*i))));
+  // build (as in the leadership intro)
+  set('logo',eo(seg(t,0.3,0.9)),`translateY(${20*(1-eo(seg(t,0.3,0.9)))}px) scale(${0.92+0.08*eo(seg(t,0.3,0.9))})`);
+  const c=eo(seg(t,0.7,1.5));$('custtext').style.opacity=c;$('custtext').style.transform=`translateY(${34*(1-c)}px)`;$('overt').style.opacity=cl(seg(t,1.75,2.05));
+  set('av',cl(seg(t,1.9,2.15)),`scale(${0.4+0.6*back(seg(t,1.9,2.5))})`);
+  if(!fdDone){drawFD(seg(t,2.25,3.95));if(t>3.95)fdDone=true;}
+  const g=eo(seg(t,3.7,4.4));set('tag',g,`translateY(${14*(1-g)}px)`);
+  if(t<2.95){drawLineFull(eio(seg(t,1.0,2.9))*D.total);}
+  else{
+    if(!full){drawLineFull(1e9);full=document.createElement('canvas');full.width=1920;full.height=1080;full.getContext('2d').drawImage($('line'),0,0);}
+    ctx.clearRect(0,0,1920,1080);ctx.drawImage(full,0,0);
+    // first sweep at 3.6 s, then one every 7 s; heart glows as each sweep reaches it
+    const cyc=t<5.3?t-3.6:((t-5.3)%7)+1.7-1.7, base=t<5.3?0:1;
+    let sw,ht;if(t<5.3){sw=eio(seg(t,3.6,5.0));ht=Math.sin(Math.PI*cl(seg(t,4.5,5.3)));}
+    else{const u=(t-5.3)%7;sw=eio(seg(u,2.0,3.6));ht=Math.sin(Math.PI*cl(seg(u,3.1,4.0)));}
+    glow(sw*(D.total+300),ht);
+  }
+  requestAnimationFrame(frame);
+}
+(async()=>{
+  try{
+    D=await (await fetch('line_data_kv.json')).json();FDP=await (await fetch('fd_paths.json')).json();
+    ctx=$('line').getContext('2d');fctx=$('fd').getContext('2d');
+    fm=document.createElement('canvas');fm.width=1920;fm.height=1080;fmc=fm.getContext('2d');
+    tmp=document.createElement('canvas');tmp.width=1920;tmp.height=1080;tctx=tmp.getContext('2d');
+    await document.fonts.load('245px GilroyKV');
+    await Promise.all([...document.images].map(i=>i.complete?1:new Promise(r=>{i.onload=r;i.onerror=r;})));
+  }catch(e){return;}                               // assets missing (offline): the wall's still artwork stays
+  fit();$('stage').classList.add('on');t0=performance.now();requestAnimationFrame(frame);
+})();
+</script>

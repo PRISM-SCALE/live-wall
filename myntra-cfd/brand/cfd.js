@@ -164,6 +164,7 @@
       if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>requestAnimationFrame(fitPill));
       setTimeout(fitPill,1500);
       CFD.introStart(o.wall);
+      animHolding(base);
     },
     setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');requestAnimationFrame(fitPill);},
     // ---- Opening: "Loading" + spinner over the post area; once the first posts have loaded, a light wave rises
@@ -187,6 +188,17 @@
     }
   };
   const I={};
+  // Animated holding screen: when #holding is switched on, play the leadership-video logo build + gentle loop
+  // (brand/holding/index.html) on top of the still artwork; removed again when the wall comes back.
+  function animHolding(base){
+    const h=document.getElementById('holding');if(!h||h.__anim)return;h.__anim=1;
+    const on=()=>{if(h.querySelector('iframe.cfd-holdanim'))return;const f=document.createElement('iframe');f.className='cfd-holdanim';
+      f.src=base+'holding/index.html?v=20261119b';f.setAttribute('aria-hidden','true');f.tabIndex=-1;
+      const tag=h.querySelector('#htag');h.insertBefore(f,tag||null);h.classList.add('cfd-animated');};
+    const off=()=>{const f=h.querySelector('iframe.cfd-holdanim');if(f)f.remove();h.classList.remove('cfd-animated');};
+    const sync=()=>{h.classList.contains('show')?on():off();};
+    new MutationObserver(sync).observe(h,{attributes:true,attributeFilter:['class']});sync();
+  }
   function waveSVG(cls,a){
     // one long sine band (two periods per screen width, drawn twice so it can drift sideways seamlessly)
     const W=2000,amp=26,base=60,N=128,P=4,pts=[];for(let i=0;i<=N;i++)pts.push([i*W/N,base+amp*Math.sin(2*Math.PI*P*i/N+(cls==='w2'?1.3:0))]);

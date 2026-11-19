@@ -123,3 +123,8 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 .cfd-wave .w1{animation:cfdDrift 2.2s linear infinite}
 .cfd-wave .w2{animation:cfdDrift 3.1s linear infinite reverse;opacity:.55}
 @keyframes cfdDrift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* animated holding screen (leadership-video logo build), sits over the still artwork, under the hashtag pill */
+#holding .cfd-holdanim{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:1;pointer-events:none;background:transparent}
+#holding #htag{z-index:2}
+#holding.cfd-animated .cfd-hold{display:none!important}   /* the animation has its own light; avoid a ghost copy */
