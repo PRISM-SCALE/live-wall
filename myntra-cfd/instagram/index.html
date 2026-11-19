@@ -179,9 +179,9 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 .emptywall{inset:17.5vh 0 5.5vh!important}
 @media(max-width:900px){.grid{top:11vh!important;bottom:0!important}}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261115g">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261117i">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261115g"></script>
+<script src="../brand/cfd.js?v=20261117i"></script>
 </head>
 <body>
 
@@ -324,7 +324,7 @@ const WALL_ID = (new URLSearchParams(location.search).get('wall')||'myntra-cfd')
 const ADMIN_MODE = new URLSearchParams(location.search).has('admin');
 const useCloud = !!FIREBASE_CONFIG.databaseURL && typeof firebase!=='undefined';
 const KEY = 'igwall_v1_'+WALL_ID;
-const DEFAULT_SETTINGS = {cols:4,speed:30,caps:0,event:'Customer First Day',tag:'#CustomerFirstDay',moreTags:'',logo:'',accent:'#ff29a3',accent2:'#f98a16',bg:'#a70268',hmsg:'',holding:false};
+const DEFAULT_SETTINGS = {cols:4,speed:30,caps:0,event:'Customer First Day',tag:'#MyntraCustomerFirst',moreTags:'',logo:'',accent:'#ff29a3',accent2:'#f98a16',bg:'#a70268',hmsg:'',holding:false};
 let posts=[], settings={...DEFAULT_SETTINGS}, tab='links', wallRef=null;
 
 const $=id=>document.getElementById(id);
@@ -362,7 +362,7 @@ window.addEventListener('online',()=>{setStatus('Back online','ok');setTimeout((
 let retryDelay=2000,retryTimer=null;
 function subscribe(){
   clearTimeout(retryTimer);
-  wallRef.on('value',snap=>{retryDelay=2000;setStatus('');const v=snap.val();
+  wallRef.on('value',snap=>{window.__wallDataIn=1;retryDelay=2000;setStatus('');const v=snap.val();
     if(v){posts=v.posts||[];settings={...DEFAULT_SETTINGS,...(v.settings||{})};store.set(KEY,JSON.stringify({posts,settings}));}
     sugCloud=(v&&v.suggest&&v.suggest.items)||{};sugMeta=(v&&v.suggest&&v.suggest.meta)||null;
     applyAll();if(adminOpen()){renderQueue();syncForm();}renderSuggest();
@@ -449,7 +449,7 @@ function buildWall(){
   document.documentElement.style.setProperty('--cols',N);
   $('emptywall').classList.toggle('show',!list.length);
   colState=[];
-  if(!list.length){if(gridBuilding){gridBuilding.remove();gridBuilding=null;gridPending=false;buildGen++;}grid.innerHTML='';colOriginals=[];placed=new Set();return;}
+  if(!list.length){if(window.CFD&&CFD.introReady&&(!useCloud||window.__wallDataIn))CFD.introReady();if(gridBuilding){gridBuilding.remove();gridBuilding=null;gridPending=false;buildGen++;}grid.innerHTML='';colOriginals=[];placed=new Set();return;}
   // Fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full.
   const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
   if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
@@ -459,7 +459,7 @@ function buildWall(){
   lastBuildAt=Date.now();setTimeout(()=>{if(adminOpen())renderQueue();},21000);
   // 2 stacked copies per column (seamless loop); reflow only changes sizes and the scroll distance
   const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner}</div></div>`).join('');
-  if(!grid.querySelector('.card')){grid.innerHTML=html;revealAll(grid);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
+  if(!grid.querySelector('.card')){grid.innerHTML=html;const rv=revealAll(grid);if(window.CFD&&CFD.introReady)CFD.introReady(rv);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
   // No flash on updates: build the new wall invisibly behind the current one, wait until its Instagram
   // posts have loaded, then cross-fade. The current wall keeps scrolling the whole time.
   const next=document.createElement('div');next.className='grid';

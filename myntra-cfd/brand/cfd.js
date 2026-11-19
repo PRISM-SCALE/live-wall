@@ -163,7 +163,62 @@
       addEventListener('resize',()=>requestAnimationFrame(fitPill));
       if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>requestAnimationFrame(fitPill));
       setTimeout(fitPill,1500);
+      CFD.introStart(o.wall);
     },
-    setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');requestAnimationFrame(fitPill);}
+    setTag(t){document.querySelectorAll('.cfd-tag').forEach(e=>e.textContent=t||'');requestAnimationFrame(fitPill);},
+    // ---- Opening: "Loading" + spinner over the post area; once the first posts have loaded, a light wave rises
+    // and reveals them. Plays once per page load on the TV (never in the control panel).
+    introStart(wall){
+      const q=new URLSearchParams(location.search);if(I.el||q.has('admin')||!q.has('intro'))return;   // opening animation only with ?intro=1 for now
+      I.wall=wall;I.t0=performance.now();wall.classList.add('cfd-intro-on');
+      const el=document.createElement('div');el.className='cfd-intro';el.setAttribute('aria-hidden','true');
+      const word='Loading'.split('').map((c,i)=>`<b style="animation-delay:${(.35+i*.07).toFixed(2)}s">${c}</b>`).join('');
+      const ticks=Array.from({length:12},(_,k)=>`<i style="transform:rotate(${k*30}deg);animation-delay:${(-(12-k)*1.1/12).toFixed(3)}s"></i>`).join('');
+      el.innerHTML=`<div class="cfd-load"><div class="cfd-spin">${ticks}</div><div class="cfd-word">${word}</div></div><div class="cfd-wave">${waveSVG('w2',.6)}${waveSVG('w1',1)}</div>`;
+      wall.appendChild(el);I.el=el;
+      setTimeout(()=>CFD.introReady(),15000);              // never wait longer than this (no internet, database slow)
+      if(I.pending){const p=I.pending;I.pending=null;CFD.introReady(p);}
+    },
+    introReady(p){
+      if(!I.el){if(!I.played)I.pending=p||true;return;}
+      if(I.waiting||I.played)return;I.waiting=true;
+      Promise.race([Promise.resolve(p===true?null:p),new Promise(r=>setTimeout(r,8000))]).catch(()=>{}).then(()=>{
+        const wait=Math.max(600,2600-(performance.now()-I.t0));setTimeout(playWave,wait);});
+    }
   };
+  const I={};
+  function waveSVG(cls,a){
+    // one long sine band (two periods per screen width, drawn twice so it can drift sideways seamlessly)
+    const W=2000,amp=26,base=60,N=128,P=4,pts=[];for(let i=0;i<=N;i++)pts.push([i*W/N,base+amp*Math.sin(2*Math.PI*P*i/N+(cls==='w2'?1.3:0))]);
+    const top=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    const id='cfdg'+cls;
+    return `<svg class="${cls}" viewBox="0 0 ${W} 300" preserveAspectRatio="none"><defs>
+      <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="${.96*a}"/><stop offset=".22" stop-color="#ffe3ee" stop-opacity="${.9*a}"/>
+        <stop offset=".45" stop-color="#ff7aa8" stop-opacity="${.55*a}"/><stop offset="1" stop-color="#e5146e" stop-opacity="0"/></linearGradient>
+      <filter id="${id}b" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+      <path d="${top} L ${W} 300 L 0 300 Z" fill="url(#${id})"/>
+      <path d="${top}" fill="none" stroke="#ffd25a" stroke-width="10" opacity="${.8*a}" filter="url(#${id}b)"/>
+      <path d="${top}" fill="none" stroke="#fff" stroke-width="2.5" opacity="${a}"/></svg>`;
+  }
+  function playWave(){
+    if(I.played||!I.el)return;I.played=true;const el=I.el,wall=I.wall;
+    el.classList.add('out');
+    setTimeout(()=>{
+      const wave=el.querySelector('.cfd-wave'),H=el.clientHeight,WH=wave.offsetHeight,dur=1900,t0=performance.now();
+      const g=()=>document.getElementById('grid');
+      const gr=g();if(gr)gr.style.clipPath='inset(100% 0 0 0)';
+      wall.classList.remove('cfd-intro-on');
+      const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+      (function step(now){
+        const t=Math.min(1,(now-t0)/dur),e=ease(t);
+        const y=H+40-e*(H+WH+80);                         // top of the wave band, rising from below to above the area
+        wave.style.transform=`translate3d(0,${(y-H).toFixed(1)}px,0)`;
+        const edge=Math.max(0,y+WH*.24);                  // posts are revealed just under the bright crest
+        const gg=g();if(gg)gg.style.clipPath=edge>0?`inset(${(edge/H*100).toFixed(2)}% 0 0 0)`:'none';
+        if(t<1)requestAnimationFrame(step);
+        else{const g2=g();if(g2)g2.style.clipPath='';el.style.transition='opacity .4s ease';el.style.opacity='0';setTimeout(()=>el.remove(),450);}
+      })(t0);
+    },520);
+  }
 })();

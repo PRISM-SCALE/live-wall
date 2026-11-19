@@ -100,3 +100,26 @@ body,button,input,textarea,select{font-family:'Montserrat',system-ui,sans-serif}
 /* ---------- holding screen (B): light sweeping along the artwork's ribbon (built in cfd.js) ---------- */
 .cfd-hold{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .cfd-swf{mix-blend-mode:screen;pointer-events:none}
+
+/* ---------- opening: "Loading" + spinner, then a light wave rises and reveals the posts (built in cfd.js) ---------- */
+#wall.cfd-intro-on .grid{opacity:.01!important}          /* posts load (and paint) unseen behind the loader */
+#wall.cfd-intro-on .emptywall{opacity:0!important}
+.cfd-intro{position:absolute;left:0;right:0;top:calc(var(--cfd-head) - 2vh);bottom:1vh;z-index:6;pointer-events:none;overflow:hidden}
+.cfd-load{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3.2vh;
+  transition:opacity .5s ease,transform .6s cubic-bezier(.4,0,.2,1),filter .5s ease}
+.cfd-intro.out .cfd-load{opacity:0;transform:scale(.92);filter:blur(6px)}
+.cfd-spin{position:relative;width:6.4vh;height:6.4vh;opacity:0;animation:cfdIn .7s ease .1s forwards}
+.cfd-spin i{position:absolute;left:45.5%;top:0;width:9%;height:28%;border-radius:1vh;background:#fff;transform-origin:50% 178.6%;
+  box-shadow:0 0 1.2vh rgba(255,255,255,.55);animation:cfdTick 1.1s linear infinite}
+@keyframes cfdTick{0%{opacity:1}100%{opacity:.14}}
+.cfd-word{font:600 2.5vh/1 'Montserrat',system-ui,sans-serif;letter-spacing:.5em;margin-right:-.5em;text-transform:uppercase;color:#fff;
+  text-shadow:0 0 2.4vh rgba(255,210,90,.55),0 .3vh 1.2vh rgba(90,0,40,.35);animation:cfdBlink 1.5s ease-in-out 1.3s infinite}
+.cfd-word b{display:inline-block;font-weight:600;opacity:0;transform:translateY(1.4vh);filter:blur(5px);animation:cfdLetter .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes cfdLetter{to{opacity:1;transform:none;filter:none}}
+@keyframes cfdBlink{0%,100%{opacity:1}50%{opacity:.38}}
+@keyframes cfdIn{to{opacity:1}}
+.cfd-wave{position:absolute;left:0;width:100%;height:30vh;top:100%;will-change:transform}
+.cfd-wave svg{position:absolute;left:0;top:0;width:200%;height:100%;overflow:visible}
+.cfd-wave .w1{animation:cfdDrift 2.2s linear infinite}
+.cfd-wave .w2{animation:cfdDrift 3.1s linear infinite reverse;opacity:.55}
+@keyframes cfdDrift{from{transform:translateX(0)}to{transform:translateX(-50%)}}

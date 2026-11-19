@@ -235,10 +235,15 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 .card.custom .cfoot .hash,.cbody .tag{color:#ffd25a!important}
 .in-glyph{background:#fff!important;color:#c4037a!important}
 @media(max-width:900px){.grid{top:11vh!important;bottom:0!important}}
+/* ---------- holding screen (B): Customer First Day artwork, same as the Instagram wall ---------- */
+#holding{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;background:#a70268 url(../brand/kv-full.jpg) center/cover no-repeat}
+#holding.show{display:flex}
+#holding .big{position:absolute;bottom:4vh;left:50%;transform:translateX(-50%);font-family:'Montserrat',system-ui,sans-serif;font-weight:700;font-size:3vh;color:#fff;
+  background:rgba(255,255,255,.16);padding:1vh 2.6vh;border-radius:999px;border:1px solid rgba(255,255,255,.5);white-space:nowrap}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261115g">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261117i">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261115g"></script>
+<script src="../brand/cfd.js?v=20261117i"></script>
 </head>
 <body>
 
@@ -260,6 +265,7 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 
   <div class="grid" id="grid"></div>
 
+  <div id="holding"><div class="big" id="htag">#MyntraCustomerFirst</div></div>
   <div class="emptywall" id="emptywall">
     <h2>The wall is ready</h2>
     <p>No posts yet. Open the control panel to paste a LinkedIn embed or add a highlight card.</p>
@@ -272,6 +278,7 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
     <div class="panel-head">
       <div><h1>LinkedIn Wall · Control</h1><div class="sub">Myntra · Customer First Day</div></div>
       <div id="authbox" class="authbox"></div>
+      <button class="btn sm" id="blankbtn" onclick="toggleHolding()" style="background:#e5146e">Blank screen (B)</button>
       <button class="btn ghost sm" onclick="exportJSON()">Export</button>
       <button class="btn ghost sm" onclick="document.getElementById('importfile').click()">Import</button>
       <input type="file" id="importfile" accept="application/json" style="display:none">
@@ -313,7 +320,7 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 
         <h3 style="margin-top:28px">Display settings</h3>
         <div class="settings-grid">
-          <div style="grid-column:1/-1"><label>Hashtag on screen</label><input id="s_tag" placeholder="#CustomerFirstDay"></div>
+          <div style="grid-column:1/-1"><label>Hashtag on screen</label><input id="s_tag" placeholder="#MyntraCustomerFirst"></div>
           <div><label>Columns</label>
             <select id="s_cols"><option selected>3</option><option>4</option><option>5</option><option>6</option></select></div>
           <div><label>Scroll speed</label>
@@ -366,7 +373,7 @@ const ADMIN_PASSCODE = "";   // replaced by staff Google sign-in (see AUTH below
 const EMBED_W=504; // LinkedIn native embed width
 // Event wall: its own spot in the database (liwalls/<name>), separate from the old mynnovAIte wall.
 const LI_WALL=(new URLSearchParams(location.search).get('wall')||'myntra-cfd').replace(/[^a-z0-9_-]/gi,'').slice(0,40)||'myntra-cfd';
-const DEFAULT_TAG='#CustomerFirstDay';
+const DEFAULT_TAG='#MyntraCustomerFirst';
 let posts=[], settings={cols:4,speed:30,tag:DEFAULT_TAG}, tab='link';
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
@@ -402,7 +409,7 @@ function setStatus(text,kind){
 
 function subscribe(){
   clearTimeout(retryTimer);
-  wallRef.on('value',snap=>{
+  wallRef.on('value',snap=>{window.__wallDataIn=1;
     retryDelay=2000; gotData=true; setStatus('');       // healthy again
     const v=snap.val();
     if(!v){ posts=[]; applyWall(); return; }   // empty wall: never write demo posts to the live DB
@@ -555,7 +562,7 @@ function buildWall(){
   const N=effectiveCols();
   document.documentElement.style.setProperty('--cols',N);
   const list=wallPosts();
-  if(!list.length){if(gridBuilding){gridBuilding.remove();gridBuilding=null;gridPending=false;buildGen++;}empty.classList.add('show');g.innerHTML='';colOriginals=[];colState=[];placed=new Set();return;}
+  if(!list.length){if(window.CFD&&CFD.introReady&&(!useCloud||window.__wallDataIn))CFD.introReady();if(gridBuilding){gridBuilding.remove();gridBuilding=null;gridPending=false;buildGen++;}empty.classList.add('show');g.innerHTML='';colOriginals=[];colState=[];placed=new Set();return;}
   empty.classList.remove('show');
   if(gridBuilding){gridPending=true;return;}
   // fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full
@@ -564,7 +571,7 @@ function buildWall(){
   wallLayout=layoutKey();placed=new Set(list.map(p=>p.id));fillMode=list.length<N;liveOps=[];
   colOriginals=cols.map(list=>list.map(cardFor).join(''));
   const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner}</div></div>`).join('');
-  if(!g.querySelector('.card')){g.innerHTML=html;colState=[];revealAll(g);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
+  if(!g.querySelector('.card')){g.innerHTML=html;colState=[];const rv=revealAll(g);if(window.CFD&&CFD.introReady)CFD.introReady(rv);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
   const next=document.createElement('div');next.className='grid';
   next.style.cssText='opacity:0;pointer-events:none;transition:opacity .9s ease';
   next.innerHTML=html;g.parentNode.insertBefore(next,g.nextSibling);
@@ -667,7 +674,12 @@ function tick(t){
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
-function applyWall(){
+// Holding screen: staff switch it from the panel (or B on the wall); every TV follows within seconds.
+function applyHolding(){const h=document.getElementById('holding');if(h)h.classList.toggle('show',!!settings.holding);
+  const t=document.getElementById('htag');if(t)t.textContent=settings.tag||DEFAULT_TAG;
+  const b=document.getElementById('blankbtn');if(b)b.textContent=settings.holding?'Show wall again (B)':'Blank screen (B)';}
+function toggleHolding(){if(!guard())return;settings.holding=!settings.holding;applyHolding();commit();}
+function applyWall(){applyHolding();
   const list=wallPosts(),N=effectiveCols(),layout=layoutKey(),sig=JSON.stringify([list.map(p=>p.id),layout]);
   if(sig===wallSig){reflow();return;}
   wallSig=sig;
@@ -854,6 +866,7 @@ document.getElementById('importfile').addEventListener('change',e=>{if(!guard())
 document.addEventListener('keydown',e=>{
   if(document.getElementById('admin').classList.contains('open')){if(e.key==='Escape')closeAdmin();return;}
   if(e.key==='a'||e.key==='A')openAdmin();
+  else if(e.key==='b'||e.key==='B'){if(staffUser)toggleHolding();else{settings.holding=!settings.holding;applyHolding();}}
   else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();}
 });
 window.addEventListener('resize',()=>{clearTimeout(resizeRAF);resizeRAF=setTimeout(rebuild,200);});
