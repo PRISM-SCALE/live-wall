@@ -189,27 +189,18 @@
     }
   };
   const I={};
-  // An empty wall on the TV shows the animated holding screen instead of the operator's "no posts yet" note.
+  // Animated holding screen: switched off at the event. Kept as a no-op so nothing touches #holding.
+  function animHolding(base){}
+  // An empty wall on the TV shows the still holding artwork + hashtag instead of the operator's "no posts yet" note.
+  // Every change is guarded, so the observer never re-triggers itself (a loop here froze the page on 19 Nov).
   function animEmpty(base){
     const e=document.getElementById('emptywall');if(!e||e.__anim||new URLSearchParams(location.search).has('admin'))return;e.__anim=1;
-    const on=()=>{if(e.querySelector('iframe.cfd-holdanim'))return;e.classList.add('cfd-empty-anim');
-      const pill=document.createElement('div');pill.className='cfd-emptytag cfd-tag';pill.textContent=(document.querySelector('.cfd-tag')||{}).textContent||'';
-      e.append(pill);};
-    const off=()=>{e.classList.remove('cfd-empty-anim');e.querySelectorAll('.cfd-holdanim,.cfd-emptytag').forEach(x=>x.remove());};
+    const on=()=>{if(e.classList.contains('cfd-empty-anim'))return;e.classList.add('cfd-empty-anim');
+      if(!e.querySelector('.cfd-emptytag')){const pill=document.createElement('div');pill.className='cfd-emptytag cfd-tag';
+        pill.textContent=(document.querySelector('.cfd-tag')||{}).textContent||'';e.append(pill);}};
+    const off=()=>{if(!e.classList.contains('cfd-empty-anim'))return;e.classList.remove('cfd-empty-anim');e.querySelectorAll('.cfd-emptytag').forEach(x=>x.remove());};
     const sync=()=>{e.classList.contains('show')?on():off();};
     new MutationObserver(sync).observe(e,{attributes:true,attributeFilter:['class']});sync();
-  }
-  // Animated holding screen: when #holding is switched on, play the leadership-video logo build + gentle loop
-  // (brand/holding/index.html) on top of the still artwork; removed again when the wall comes back.
-  function animHolding(base){
-    const h=document.getElementById('holding');if(!h||h.__anim)return;h.__anim=1;
-    const on=()=>{return;   // animation switched off at the event (too heavy for the venue laptop): still artwork only
-      if(h.querySelector('iframe.cfd-holdanim'))return;const f=document.createElement('iframe');f.className='cfd-holdanim';
-      f.src=base+'holding/index.html?v=20261119b';f.setAttribute('aria-hidden','true');f.tabIndex=-1;
-      const tag=h.querySelector('#htag');h.insertBefore(f,tag||null);h.classList.add('cfd-animated');};
-    const off=()=>{const f=h.querySelector('iframe.cfd-holdanim');if(f)f.remove();h.classList.remove('cfd-animated');};
-    const sync=()=>{h.classList.contains('show')?on():off();};
-    new MutationObserver(sync).observe(h,{attributes:true,attributeFilter:['class']});sync();
   }
   function waveSVG(cls,a){
     // one long sine band (two periods per screen width, drawn twice so it can drift sideways seamlessly)
