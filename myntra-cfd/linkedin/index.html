@@ -241,9 +241,9 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 #holding .big{position:absolute;bottom:4vh;left:50%;transform:translateX(-50%);font-family:'Montserrat',system-ui,sans-serif;font-weight:700;font-size:3vh;color:#fff;
   background:rgba(255,255,255,.16);padding:1vh 2.6vh;border-radius:999px;border:1px solid rgba(255,255,255,.5);white-space:nowrap}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261119i">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261119j">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261119i"></script>
+<script src="../brand/cfd.js?v=20261119j"></script>
 </head>
 <body>
 
@@ -594,7 +594,7 @@ function sizeEmbeds(){
     const cw=col.clientWidth;
     col.querySelectorAll('.card.embed').forEach(card=>{
       const w=+card.dataset.w||EMBED_W, h=+card.dataset.h||Math.round(EMBED_W*1.55);
-      const scale=Math.min(1, cw/w);          // never blow the post up past native size
+      const scale=cw/w;                      // posts always fill their column (4K and vertical TVs too)
       if(card.dataset.sz===scale.toFixed(4)&&!card.dataset.anim)return;
       card.querySelector('.scaler').style.transform=`scale(${scale})`;
       card.style.width=Math.round(w*scale)+'px';
@@ -880,7 +880,7 @@ if(ADMIN_MODE) openAdmin();
 
 // ---- Auto-refresh: when a newer version of the wall is published, every TV reloads itself (checked each minute).
 // The fresh page is fetched first so the reload never picks up an old saved copy. Never reloads while the panel is open.
-(function(){const BUILD='20261119i';
+(function(){const BUILD='20261119j';
   setInterval(async()=>{try{
     if(document.getElementById('admin')&&document.getElementById('admin').classList.contains('open'))return;
     const r=await fetch('../brand/version.txt?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
