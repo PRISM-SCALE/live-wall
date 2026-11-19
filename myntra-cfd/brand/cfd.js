@@ -193,9 +193,8 @@
   function animEmpty(base){
     const e=document.getElementById('emptywall');if(!e||e.__anim||new URLSearchParams(location.search).has('admin'))return;e.__anim=1;
     const on=()=>{if(e.querySelector('iframe.cfd-holdanim'))return;e.classList.add('cfd-empty-anim');
-      const f=document.createElement('iframe');f.className='cfd-holdanim';f.src=base+'holding/index.html?v=20261119b';f.setAttribute('aria-hidden','true');f.tabIndex=-1;
       const pill=document.createElement('div');pill.className='cfd-emptytag cfd-tag';pill.textContent=(document.querySelector('.cfd-tag')||{}).textContent||'';
-      e.append(f,pill);};
+      e.append(pill);};
     const off=()=>{e.classList.remove('cfd-empty-anim');e.querySelectorAll('.cfd-holdanim,.cfd-emptytag').forEach(x=>x.remove());};
     const sync=()=>{e.classList.contains('show')?on():off();};
     new MutationObserver(sync).observe(e,{attributes:true,attributeFilter:['class']});sync();
@@ -204,7 +203,8 @@
   // (brand/holding/index.html) on top of the still artwork; removed again when the wall comes back.
   function animHolding(base){
     const h=document.getElementById('holding');if(!h||h.__anim)return;h.__anim=1;
-    const on=()=>{if(h.querySelector('iframe.cfd-holdanim'))return;const f=document.createElement('iframe');f.className='cfd-holdanim';
+    const on=()=>{return;   // animation switched off at the event (too heavy for the venue laptop): still artwork only
+      if(h.querySelector('iframe.cfd-holdanim'))return;const f=document.createElement('iframe');f.className='cfd-holdanim';
       f.src=base+'holding/index.html?v=20261119b';f.setAttribute('aria-hidden','true');f.tabIndex=-1;
       const tag=h.querySelector('#htag');h.insertBefore(f,tag||null);h.classList.add('cfd-animated');};
     const off=()=>{const f=h.querySelector('iframe.cfd-holdanim');if(f)f.remove();h.classList.remove('cfd-animated');};
