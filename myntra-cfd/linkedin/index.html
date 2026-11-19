@@ -241,9 +241,9 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 #holding .big{position:absolute;bottom:4vh;left:50%;transform:translateX(-50%);font-family:'Montserrat',system-ui,sans-serif;font-weight:700;font-size:3vh;color:#fff;
   background:rgba(255,255,255,.16);padding:1vh 2.6vh;border-radius:999px;border:1px solid rgba(255,255,255,.5);white-space:nowrap}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261119g">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261119h">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261119g"></script>
+<script src="../brand/cfd.js?v=20261119h"></script>
 </head>
 <body>
 
@@ -877,6 +877,17 @@ if(window.CFD)CFD.mount({kind:'linkedin',tag:DEFAULT_TAG,wall:document.getElemen
 if(useCloud){ initCloud(); }
 else{ load(); applyWall(); }
 if(ADMIN_MODE) openAdmin();
+
+// ---- Auto-refresh: when a newer version of the wall is published, every TV reloads itself (checked each minute).
+// The fresh page is fetched first so the reload never picks up an old saved copy. Never reloads while the panel is open.
+(function(){const BUILD='20261119h';
+  setInterval(async()=>{try{
+    if(document.getElementById('admin')&&document.getElementById('admin').classList.contains('open'))return;
+    const r=await fetch('../brand/version.txt?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const v=(await r.text()).trim();if(!v||v===BUILD)return;
+    const k='wall_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
+    await fetch(location.href,{cache:'reload'}).catch(()=>{});location.reload();
+  }catch(e){}},60000);})();
 </script>
 </body>
 </html>

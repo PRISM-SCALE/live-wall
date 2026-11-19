@@ -179,9 +179,9 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 .emptywall{inset:17.5vh 0 5.5vh!important}
 @media(max-width:900px){.grid{top:11vh!important;bottom:0!important}}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261119g">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261119h">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261119g"></script>
+<script src="../brand/cfd.js?v=20261119h"></script>
 </head>
 <body>
 
@@ -901,6 +901,17 @@ if(window.CFD)CFD.mount({kind:'instagram',tag:DEFAULT_SETTINGS.tag,wall:$('wall'
 if(useCloud)initCloud();else{load();applyAll();}
 if(ADMIN_MODE)openAdmin();
 if(!navigator.onLine)setStatus('No internet — Instagram posts can’t load. Press B for the holding screen.','warn');
+
+// ---- Auto-refresh: when a newer version of the wall is published, every TV reloads itself (checked each minute).
+// The fresh page is fetched first so the reload never picks up an old saved copy. Never reloads while the panel is open.
+(function(){const BUILD='20261119h';
+  setInterval(async()=>{try{
+    if(document.getElementById('admin')&&document.getElementById('admin').classList.contains('open'))return;
+    const r=await fetch('../brand/version.txt?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const v=(await r.text()).trim();if(!v||v===BUILD)return;
+    const k='wall_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
+    await fetch(location.href,{cache:'reload'}).catch(()=>{});location.reload();
+  }catch(e){}},60000);})();
 </script>
 </body>
 </html>
