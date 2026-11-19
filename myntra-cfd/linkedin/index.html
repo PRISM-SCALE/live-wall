@@ -241,9 +241,9 @@ textarea{resize:vertical;min-height:92px;line-height:1.5;}
 #holding .big{position:absolute;bottom:4vh;left:50%;transform:translateX(-50%);font-family:'Montserrat',system-ui,sans-serif;font-weight:700;font-size:3vh;color:#fff;
   background:rgba(255,255,255,.16);padding:1vh 2.6vh;border-radius:999px;border:1px solid rgba(255,255,255,.5);white-space:nowrap}
 </style>
-<link rel="stylesheet" href="../brand/cfd.css?v=20261119f">
+<link rel="stylesheet" href="../brand/cfd.css?v=20261119g">
 <script src="../brand/cfd-vector.js?v=20261115g"></script>
-<script src="../brand/cfd.js?v=20261119f"></script>
+<script src="../brand/cfd.js?v=20261119g"></script>
 </head>
 <body>
 
@@ -566,9 +566,10 @@ function buildWall(){
   empty.classList.remove('show');
   if(gridBuilding){gridPending=true;return;}
   // fewer posts than columns: every column shows all posts, each starting at a different one, so the wall looks full
-  const cols=list.length>=N?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>list.map((_,k)=>list[(k+j)%list.length]));
-  if(list.length>=N)list.forEach((p,i)=>cols[i%N].push(p));
-  wallLayout=layoutKey();placed=new Set(list.map(p=>p.id));fillMode=list.length<N;liveOps=[];
+  const FEW=list.length<3*N;   // fewer than 3 posts per column: each column gets 3 cards (rotated through all posts) so every column scrolls, and the laptop stays light
+  const cols=!FEW?Array.from({length:N},()=>[]):Array.from({length:N},(_,j)=>Array.from({length:3},(_,k)=>list[(j*3+k)%list.length]));
+  if(!FEW)list.forEach((p,i)=>cols[i%N].push(p));
+  wallLayout=layoutKey();placed=new Set(list.map(p=>p.id));fillMode=FEW;liveOps=[];
   colOriginals=cols.map(list=>list.map(cardFor).join(''));
   const html=colOriginals.map(inner=>`<div class="col"><div class="colinner">${inner+inner}</div></div>`).join('');
   if(!g.querySelector('.card')){g.innerHTML=html;colState=[];const rv=revealAll(g);if(window.CFD&&CFD.introReady)CFD.introReady(rv);requestAnimationFrame(()=>requestAnimationFrame(reflow));return;}
@@ -683,7 +684,7 @@ function applyWall(){applyHolding();
   const list=wallPosts(),N=effectiveCols(),layout=layoutKey(),sig=JSON.stringify([list.map(p=>p.id),layout]);
   if(sig===wallSig){reflow();return;}
   wallSig=sig;
-  const canLive=!ADMIN_MODE&&!gridBuilding&&layout===wallLayout&&!fillMode&&list.length>=N&&!!$g().querySelector('.card');
+  const canLive=!ADMIN_MODE&&!gridBuilding&&layout===wallLayout&&!fillMode&&list.length>=3*N&&!!$g().querySelector('.card');
   if(!canLive){buildWall();return;}
   const want=new Set(list.map(p=>p.id));
   list.forEach(p=>{if(!placed.has(p.id)){placed.add(p.id);liveOps.push({type:'add',post:p});}});
